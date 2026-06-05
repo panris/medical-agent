@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>智能医疗问诊</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f7fa;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部导航 */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        .header-icon { font-size: 24px; }
+        .header-info h1 { font-size: 17px; font-weight: 600; }
+        .header-info p { font-size: 12px; opacity: 0.85; }
+
+        /* 消息列表 */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            scroll-behavior: smooth;
+        }
+        .message {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 10px;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .message.user { flex-direction: row-reverse; }
+        .avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; flex-shrink: 0;
+        }
+        .message.assistant .avatar { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .message.user .avatar { background: #e0e7ff; color: #4338ca; }
+
+        .bubble {
+            max-width: 78%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            line-height: 1.6;
+            font-size: 14px;
+            word-break: break-word;
+        }
+        .message.assistant .bubble {
+            background: white;
+            color: #1f2937;
+            border-top-left-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .message.user .bubble {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-top-right-radius: 4px;
+        }
+
+        /* 诊断卡片 */
+        .diagnosis-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border-left: 4px solid #667eea;
+        }
+        .diagnosis-card h3 { font-size: 14px; color: #374151; margin-bottom: 12px; }
+        .diagnosis-card .field { margin-bottom: 8px; }
+        .diagnosis-card .label { font-size: 12px; color: #6b7280; margin-bottom: 2px; }
+        .diagnosis-card .value { font-size: 14px; color: #111827; }
+        .diagnosis-card .conditions { display: flex; flex-wrap: wrap; gap: 6px; }
+        .diagnosis-card .tag {
+            background: #ede9fe; color: #6d28d9;
+            padding: 2px 10px; border-radius: 12px; font-size: 12px;
+        }
+        .severity {
+            display: inline-block; padding: 2px 10px; border-radius: 12px;
+            font-size: 12px; font-weight: 500;
+        }
+        .severity.low { background: #d1fae5; color: #065f46; }
+        .severity.medium { background: #fef3c7; color: #92400e; }
+        .severity.high { background: #fee2e2; color: #991b1b; }
+        .severity.critical { background: #fecaca; color: #7f1d1d; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+        /* 免责声明 */
+        .disclaimer {
+            background: #fffbeb; border: 1px solid #fde68a;
+            border-radius: 8px; padding: 10px 14px;
+            font-size: 12px; color: #92400e;
+            margin-top: 8px;
+        }
+
+        /* 快捷标签 */
+        .quick-tags {
+            padding: 8px 16px;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .quick-tags::-webkit-scrollbar { display: none; }
+        .quick-tag {
+            flex-shrink: 0;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            font-size: 13px;
+            color: #4b5563;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .quick-tag:active { background: #667eea; color: white; border-color: #667eea; }
+
+        /* 输入区域 */
+        .input-area {
+            background: white;
+            padding: 12px 16px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+        }
+        .input-area textarea {
+            flex: 1;
+            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            padding: 10px 16px;
+            font-size: 15px;
+            resize: none;
+            outline: none;
+            max-height: 100px;
+            min-height: 40px;
+            line-height: 1.4;
+            font-family: inherit;
+        }
+        .input-area textarea:focus { border-color: #667eea; }
+        .send-btn {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none; color: white; font-size: 18px;
+            cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+            transition: opacity 0.2s;
+        }
+        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* 打字指示器 */
+        .typing-indicator {
+            display: flex; gap: 4px; padding: 4px 0;
+        }
+        .typing-indicator span {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #9ca3af; animation: typing 1.4s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+        /* 欢迎消息 */
+        .welcome {
+            text-align: center; padding: 40px 20px; color: #6b7280;
+        }
+        .welcome-icon { font-size: 48px; margin-bottom: 16px; }
+        .welcome h2 { font-size: 18px; color: #374151; margin-bottom: 8px; }
+        .welcome p { font-size: 14px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-icon">🏥</div>
+    <div class="header-info">
+        <h1>智能医疗问诊</h1>
+        <p>AI 初步分析 · 仅供参考 · 请遵医嘱</p>
+    </div>
+</div>
+
+<div class="chat-container" id="chatContainer">
+    <div class="welcome" id="welcome">
+        <div class="welcome-icon">🩺</div>
+        <h2>智能医疗问诊助手</h2>
+        <p>请描述您的症状，我会为您做初步分析。<br>严重不适请直接拨打 <strong>120</strong>。</p>
+    </div>
+</div>
+
+<div class="quick-tags" id="quickTags">
+    <div class="quick-tag" onclick="sendQuick('头疼，持续两天了')">🤕 头疼</div>
+    <div class="quick-tag" onclick="sendQuick('咳嗽发烧，体温38.5度')">🤒 发烧</div>
+    <div class="quick-tag" onclick="sendQuick('胃不舒服，饭后反酸')">🤢 胃部不适</div>
+    <div class="quick-tag" onclick="sendQuick('胸闷气短')">😰 胸闷</div>
+    <div class="quick-tag" onclick="sendQuick('失眠，最近一周都睡不好')">😴 失眠</div>
+    <div class="quick-tag" onclick="sendQuick('皮肤起红疹，很痒')">😵 皮肤过敏</div>
+</div>
+
+<div class="input-area">
+    <textarea id="inputText" placeholder="描述您的症状..." rows="1"
+              oninput="autoResize(this)" onkeydown="handleKeydown(event)"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+</div>
+
+<script>
+const API_BASE = window.location.hostname === 'localhost'
+    ? 'http://localhost:8080' : '';
+const ENDPOINT = API_BASE + '/api/v1/chat/stream';
+
+let sessionId = localStorage.getItem('med_session_id') || generateId();
+let abortController = null;
+let isStreaming = false;
+
+// 会话恢复
+function generateId() {
+    return 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+function initSession() {
+    // 检查历史
+    const history = localStorage.getItem('med_history_' + sessionId);
+    if (history) {
+        try {
+            const data = JSON.parse(history);
+            data.messages.forEach(msg => appendMessage(msg.type, msg.content));
+            document.getElementById('welcome').style.display = 'none';
+        } catch (e) { /* ignore */ }
+    }
+}
+
+// 发送消息
+async function sendMessage() {
+    const input = document.getElementById('inputText');
+    const text = input.value.trim();
+    if (!text || isStreaming) return;
+
+    // 中断上一个流
+    if (abortController) abortController.abort();
+
+    input.value = '';
+    autoResize(input);
+    isStreaming = true;
+    document.getElementById('sendBtn').disabled = true;
+
+    appendMessage('user', text);
+    showTyping();
+
+    abortController = new AbortController();
+
+    try {
+        const resp = await fetch(ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, message: text }),
+            signal: abortController.signal
+        });
+
+        hideTyping();
+
+        if (!resp.ok) throw new Error('请求失败: ' + resp.status);
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let currentBubble = null;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+
+            // 解析 SSE events
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop(); // 保留不完整的部分
+
+            for (const block of lines) {
+                if (!block.trim()) continue;
+                const eventLine = block.split('\n').find(l => l.startsWith('data:'));
+                if (!eventLine) continue;
+
+                const data = eventLine.slice(5).trim();
+                if (!data) continue;
+
+                try {
+                    const event = JSON.parse(data);
+
+                    if (event.type === 'disclaimer') {
+                        appendDisclaimer(event.text);
+                        continue;
+                    }
+
+                    if (event.type === 'error') {
+                        appendMessage('assistant', event.message);
+                        continue;
+                    }
+
+                    // 普通消息
+                    if (event.content) {
+                        appendMessage('assistant', event.content);
+                        // 诊断卡片
+                        if (event.diagnosis) {
+                            renderDiagnosisCard(event.diagnosis);
+                        }
+                    }
+
+                    if (event.finished) {
+                        saveHistory();
+                    }
+                } catch (e) { /* 跳过解析失败的 event */ }
+            }
+        }
+    } catch (e) {
+        hideTyping();
+        if (e.name !== 'AbortError') {
+            appendMessage('assistant', '⚠️ 网络连接异常，请稍后重试。');
+        }
+    } finally {
+        isStreaming = false;
+        document.getElementById('sendBtn').disabled = false;
+        abortController = null;
+    }
+}
+
+function sendQuick(text) {
+    document.getElementById('inputText').value = text;
+    sendMessage();
+}
+
+// UI 辅助
+function appendMessage(type, content) {
+    document.getElementById('welcome').style.display = 'none';
+    const container = document.getElementById('chatContainer');
+    const div = document.createElement('div');
+    div.className = `message ${type}`;
+
+    const avatar = type === 'user' ? '👤' : '🤖';
+    // 简单 markdown 处理
+    const html = formatContent(content);
+
+    div.innerHTML = `
+        <div class="avatar">${avatar}</div>
+        <div class="bubble">${html}</div>
+    `;
+    container.appendChild(div);
+    scrollToBottom();
+    saveHistory();
+}
+
+function renderDiagnosisCard(diagnosis) {
+    const container = document.getElementById('chatContainer');
+    const card = document.createElement('div');
+    card.className = 'diagnosis-card';
+
+    const conditions = (diagnosis.possible_conditions || []).map(c =>
+        `<span class="tag">${c}</span>`
+    ).join('');
+
+    card.innerHTML = `
+        <h3>📋 诊断分析</h3>
+        ${diagnosis.analysis ? `<div class="field"><div class="label">病情分析</div><div class="value">${diagnosis.analysis}</div></div>` : ''}
+        ${conditions ? `<div class="field"><div class="label">可能相关</div><div class="conditions">${conditions}</div></div>` : ''}
+        ${diagnosis.severity ? `<div class="field"><div class="label">紧急程度</div><span class="severity ${diagnosis.severity}">${severityLabel(diagnosis.severity)}</span></div>` : ''}
+        ${diagnosis.department ? `<div class="field"><div class="label">推荐科室</div><div class="value">🏥 ${diagnosis.department}</div></div>` : ''}
+        ${diagnosis.recommendation ? `<div class="field"><div class="label">建议</div><div class="value">💊 ${diagnosis.recommendation}</div></div>` : ''}
+    `;
+
+    container.appendChild(card);
+    scrollToBottom();
+}
+
+function appendDisclaimer(text) {
+    const container = document.getElementById('chatContainer');
+    const div = document.createElement('div');
+    div.className = 'disclaimer';
+    div.textContent = text;
+    container.appendChild(div);
+    scrollToBottom();
+}
+
+function formatContent(text) {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+}
+
+function severityLabel(s) {
+    const m = { low: '轻微', medium: '中等', high: '较重', critical: '紧急' };
+    return m[s] || s;
+}
+
+function showTyping() {
+    const container = document.getElementById('chatContainer');
+    const div = document.createElement('div');
+    div.className = 'message assistant';
+    div.id = 'typing';
+    div.innerHTML = `<div class="avatar">🤖</div><div class="bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+    container.appendChild(div);
+    scrollToBottom();
+}
+
+function hideTyping() {
+    const el = document.getElementById('typing');
+    if (el) el.remove();
+}
+
+function scrollToBottom() {
+    const c = document.getElementById('chatContainer');
+    setTimeout(() => c.scrollTop = c.scrollHeight, 50);
+}
+
+function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function handleKeydown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+}
+
+function saveHistory() {
+    const msgs = [];
+    document.querySelectorAll('.message').forEach(el => {
+        const type = el.classList.contains('user') ? 'user' : 'assistant';
+        const bubble = el.querySelector('.bubble');
+        if (bubble) msgs.push({ type, content: bubble.textContent });
+    });
+    localStorage.setItem('med_session_id', sessionId);
+    localStorage.setItem('med_history_' + sessionId, JSON.stringify({ messages: msgs }));
+}
+
+// 初始化
+initSession();
+</script>
+</body>
+</html>
