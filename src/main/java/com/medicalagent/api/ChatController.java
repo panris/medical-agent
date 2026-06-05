@@ -12,15 +12,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
- * 聊天 API 路由 (T4.2 + T5.1 + T5.2)
- * SSE 流式输出 + Redis Session + 输入脱敏 + 合规审计
+ * 聊天 API (T4.2 + T5.1 + T5.2)
+ * SSE (SseEmitter) + Redis Session + 输入脱敏 + 合规审计
  */
 @RestController
 @RequestMapping("/api/v1/chat")
@@ -28,6 +29,7 @@ public class ChatController {
 
     private static final Logger log = LoggerFactory.getLogger(ChatController.class);
     private static final ObjectMapper mapper = new ObjectMapper();
+    private static final ExecutorService sseExecutor = Executors.newCachedThreadPool();
 
     @Autowired
     private GraphOrchestrator graphOrchestrator;
@@ -45,11 +47,12 @@ public class ChatController {
     private long sessionTtlMinutes;
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> streamChat(@RequestBody ChatRequest request) {
-        return Flux.create(sink -> {
+    public SseEmitter streamChat(@RequestBody ChatRequest request) {
+        SseEmitter emitter = new SseEmitter(120_000L); // 2 分钟超时
+
+        sseExecutor.execute(() -> {
             long startTime = System.currentTimeMillis();
             try {
-                // 从 Redis 恢复或新建状态
                 AgentState state = getOrCreateState(request.getSessionId());
 
                 // T5.1: 输入脱敏
@@ -70,10 +73,9 @@ public class ChatController {
                         event.put("diagnosis", state.getDiagnosisResult());
                     }
 
-                    sink.next(ServerSentEvent.<String>builder()
-                            .event("message")
-                            .data(mapper.writeValueAsString(event))
-                            .build());
+                    emitter.send(SseEmitter.event()
+                            .name("message")
+                            .data(mapper.writeValueAsString(event)));
                 }
 
                 // T5.2: 合规审计
@@ -83,27 +85,28 @@ public class ChatController {
                         state.getRetrievedDocs(), state.getDiagnosisResult(),
                         state.getConfidenceScore(), latencyMs));
 
-                // T5.2: SSE 最后一帧 disclaimer
-                sink.next(ServerSentEvent.<String>builder()
-                        .event("disclaimer")
-                        .data(mapper.writeValueAsString(complianceService.buildDisclaimerEvent()))
-                        .build());
+                // T5.2: 最后一帧 disclaimer
+                emitter.send(SseEmitter.event()
+                        .name("disclaimer")
+                        .data(mapper.writeValueAsString(complianceService.buildDisclaimerEvent())));
 
                 // 持久化到 Redis
                 sessionRepository.save(request.getSessionId(), state, sessionTtlMinutes);
 
+                emitter.complete();
+
             } catch (Exception e) {
                 log.error("SSE stream error", e);
                 try {
-                    sink.next(ServerSentEvent.<String>builder()
-                            .event("error")
-                            .data(mapper.writeValueAsString(Map.of("type", "error", "message", "处理请求时发生错误")))
-                            .build());
+                    emitter.send(SseEmitter.event()
+                            .name("error")
+                            .data(mapper.writeValueAsString(Map.of("type", "error", "message", "处理请求时发生错误"))));
                 } catch (Exception ignored) {}
-            } finally {
-                sink.complete();
+                emitter.completeWithError(e);
             }
         });
+
+        return emitter;
     }
 
     @GetMapping("/session/{sessionId}/history")

@@ -1,7 +1,5 @@
 server:
   port: 8080
-  servlet:
-    context-path: /api/v1
 
 spring:
   datasource:
@@ -16,11 +14,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+      ddl-auto: none
     show-sql: false
 
   data:
@@ -59,11 +53,9 @@ session:
   ttl-minutes: 30
 
 cors:
-  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  allowed-origins: "*"
 
 logging:
   level:
     com.medicalagent: DEBUG
     root: INFO
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
