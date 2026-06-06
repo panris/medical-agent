@@ -46,6 +46,13 @@ public class ComplianceService {
     }
 
     /**
+     * 记录用户反馈（👍/👎）
+     */
+    public void logFeedback(String sessionId, String messageId, String rating, String comment) {
+        auditRepository.saveFeedback(sessionId, messageId, rating, comment);
+    }
+
+    /**
      * 构建 disclaimer SSE 事件数据
      */
     public Map<String, String> buildDisclaimerEvent() {

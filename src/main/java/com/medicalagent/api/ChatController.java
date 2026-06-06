@@ -214,6 +214,20 @@ public class ChatController {
         return sessionRepository.listSessions();
     }
 
+    /**
+     * 消息反馈（👍/👎）
+     */
+    @PostMapping("/feedback")
+    public Map<String, Object> feedback(@RequestBody Map<String, String> body) {
+        String sessionId = body.get("sessionId");
+        String messageId = body.get("messageId");
+        String rating = body.get("rating"); // "positive" | "negative"
+        String comment = body.getOrDefault("comment", "");
+        log.info("Feedback: session={}, message={}, rating={}, comment={}", sessionId, messageId, rating, comment);
+        complianceService.logFeedback(sessionId, messageId, rating, comment);
+        return Map.of("status", "ok");
+    }
+
     private AgentState getOrCreateState(String sessionId) {
         String json = sessionRepository.load(sessionId);
         if (json != null) {

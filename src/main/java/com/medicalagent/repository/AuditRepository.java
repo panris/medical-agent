@@ -47,4 +47,19 @@ public class AuditRepository {
             log.debug("Audit persist skipped (table may not exist): {}", e.getMessage());
         }
     }
+
+    /**
+     * 保存用户反馈（👍/👎）
+     */
+    public void saveFeedback(String sessionId, String messageId, String rating, String comment) {
+        try {
+            jdbcTemplate.update(
+                    "INSERT INTO feedback_records (session_id, message_id, rating, comment) VALUES (?, ?, ?, ?)",
+                    sessionId, messageId, rating, comment
+            );
+        } catch (Exception e) {
+            log.info("Feedback: session={}, msg={}, rating={}, comment={} (persist skipped: {})",
+                    sessionId, messageId, rating, comment, e.getMessage());
+        }
+    }
 }
