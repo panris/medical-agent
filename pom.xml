@@ -113,14 +113,12 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Q-07: OpenAPI / Swagger UI (pending - Maven Central unreachable, retry later) -->
-        <!--
+        <!-- OpenAPI / Swagger UI -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>2.5.0</version>
         </dependency>
-        -->
 
         <!-- Test -->
         <dependency>
