@@ -60,10 +60,6 @@ public class ModelFactory {
         return streamingModelCache.computeIfAbsent(cacheKey, k -> createStreamingModel(modelName, config, temperature, maxTokens));
     }
 
-    public ChatLanguageModel getModelWithFallback(String primary, String fallback) {
-        return new FallbackChatModel(getModel(primary), getModel(fallback));
-    }
-
     /**
      * 清空缓存（配置保存后调用，下次自动用新配置重建模型）
      */
