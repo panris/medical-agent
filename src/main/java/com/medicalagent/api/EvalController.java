@@ -7,7 +7,6 @@ import com.medicalagent.filter.SensitiveDataFilter;
 import com.medicalagent.model.AgentState;
 import com.medicalagent.repository.SessionRepository;
 import com.medicalagent.service.ComplianceService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +25,6 @@ import java.util.*;
 public class EvalController {
 
     private static final Logger log = LoggerFactory.getLogger(EvalController.class);
-    private static final ObjectMapper mapper = new ObjectMapper();
 
     @Autowired
     private GraphOrchestrator graphOrchestrator;

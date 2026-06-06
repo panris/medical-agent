@@ -13,12 +13,12 @@ import java.util.concurrent.TimeUnit;
 public class SessionRepository {
 
     private static final String KEY_PREFIX = "med:session:";
-    private static final ObjectMapper mapper = new ObjectMapper();
-
+    private final ObjectMapper mapper;
     private final StringRedisTemplate redisTemplate;
 
-    public SessionRepository(StringRedisTemplate redisTemplate) {
+    public SessionRepository(StringRedisTemplate redisTemplate, ObjectMapper mapper) {
         this.redisTemplate = redisTemplate;
+        this.mapper = mapper;
     }
 
     /**

@@ -57,10 +57,11 @@ public class RouterAgent {
     private static final List<String> VALID_INTENTS = List.of("collect_info", "retrieval", "emergency", "end");
 
     private final ModelFactory modelFactory;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
-    public RouterAgent(ModelFactory modelFactory) {
+    public RouterAgent(ModelFactory modelFactory, ObjectMapper objectMapper) {
         this.modelFactory = modelFactory;
+        this.objectMapper = objectMapper;
     }
 
     /**

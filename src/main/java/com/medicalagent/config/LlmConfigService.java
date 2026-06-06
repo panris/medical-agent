@@ -28,15 +28,15 @@ public class LlmConfigService {
     private static final String ENCRYPTED_PREFIX = "ENC(";
     private static final String ENCRYPTED_SUFFIX = ")";
 
-    private final ObjectMapper objectMapper = new ObjectMapper()
-            .enable(SerializationFeature.INDENT_OUTPUT);
-
+    private final ObjectMapper objectMapper;
     private final String configFilePath;
 
     /** 加密密钥：来自环境变量 ENC_PASSWORD，默认用机器名（开发环境） */
     private final TextEncryptor textEncryptor;
 
-    public LlmConfigService(@Value("${llm.config-file:config/llm-config.json}") String configFilePath) {
+    public LlmConfigService(@Value("${llm.config-file:config/llm-config.json}") String configFilePath,
+                             ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper.copy().enable(SerializationFeature.INDENT_OUTPUT);
         this.configFilePath = configFilePath;
         String password = System.getenv("ENC_PASSWORD");
         if (password == null || password.isBlank()) {

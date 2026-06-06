@@ -29,12 +29,13 @@ import java.util.concurrent.Executors;
 public class ChatController {
 
     private static final Logger log = LoggerFactory.getLogger(ChatController.class);
-    private static final ObjectMapper mapper = new ObjectMapper();
     private static final ExecutorService sseExecutor = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "sse-executor");
         t.setDaemon(true);
         return t;
     });
+
+    private final ObjectMapper mapper;
 
     @jakarta.annotation.PreDestroy
     public void shutdown() {
@@ -51,12 +52,14 @@ public class ChatController {
                           DiagnosisAgent diagnosisAgent,
                           SensitiveDataFilter sensitiveDataFilter,
                           ComplianceService complianceService,
-                          SessionRepository sessionRepository) {
+                          SessionRepository sessionRepository,
+                          ObjectMapper mapper) {
         this.graphOrchestrator = graphOrchestrator;
         this.diagnosisAgent = diagnosisAgent;
         this.sensitiveDataFilter = sensitiveDataFilter;
         this.complianceService = complianceService;
         this.sessionRepository = sessionRepository;
+        this.mapper = mapper;
     }
 
     @Value("${session.ttl-minutes:30}")

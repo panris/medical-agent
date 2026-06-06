@@ -17,12 +17,12 @@ import java.util.Map;
 public class AuditRepository {
 
     private static final Logger log = LoggerFactory.getLogger(AuditRepository.class);
-    private static final ObjectMapper mapper = new ObjectMapper();
-
+    private final ObjectMapper mapper;
     private final JdbcTemplate jdbcTemplate;
 
-    public AuditRepository(JdbcTemplate jdbcTemplate) {
+    public AuditRepository(JdbcTemplate jdbcTemplate, ObjectMapper mapper) {
         this.jdbcTemplate = jdbcTemplate;
+        this.mapper = mapper;
     }
 
     /**
