@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked@14/marked.min.js"></script>
     <style>
         :root {
             --bg: #f0f4f8;
@@ -621,6 +622,73 @@
         height: 18px;
     }
 
+    /* ── Markdown 渲染样式 ── */
+    .bubble .md-content h1, .bubble .md-content h2, .bubble .md-content h3 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 12px 0 6px;
+        color: var(--text-primary);
+    }
+    .bubble .md-content h2:first-child { margin-top: 0; }
+    .bubble .md-content ul, .bubble .md-content ol {
+        margin: 6px 0;
+        padding-left: 20px;
+    }
+    .bubble .md-content li { margin: 3px 0; line-height: 1.6; }
+    .bubble .md-content code {
+        background: var(--border-subtle);
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: 'SF Mono', Menlo, monospace;
+    }
+    .bubble .md-content pre {
+        background: #1e293b;
+        color: #e2e8f0;
+        padding: 12px;
+        border-radius: var(--radius-sm);
+        overflow-x: auto;
+        margin: 8px 0;
+        font-size: 13px;
+    }
+    .bubble .md-content pre code {
+        background: none;
+        padding: 0;
+        color: inherit;
+    }
+    .bubble .md-content table {
+        border-collapse: collapse;
+        margin: 8px 0;
+        font-size: 13px;
+        width: 100%;
+    }
+    .bubble .md-content th, .bubble .md-content td {
+        border: 1px solid var(--border);
+        padding: 6px 10px;
+        text-align: left;
+    }
+    .bubble .md-content th {
+        background: var(--border-subtle);
+        font-weight: 600;
+    }
+    .bubble .md-content blockquote {
+        border-left: 3px solid var(--brand);
+        margin: 8px 0;
+        padding: 4px 12px;
+        color: var(--text-secondary);
+        background: var(--brand-light);
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+    .bubble .md-content hr {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 10px 0;
+    }
+    .bubble .md-content p { margin: 6px 0; }
+    .bubble .md-content p:first-child { margin-top: 0; }
+    .bubble .md-content p:last-child { margin-bottom: 0; }
+    .bubble .md-content strong { color: var(--text-primary); }
+
     /* 移动端键盘弹出时避免输入框被遮挡 */
     @media (max-width: 768px) {
         .input-area {
@@ -1094,11 +1162,11 @@ function renderDiagnosisCard(diagnosis, save = true) {
             </div>
         </div>
         <div class="diagnosis-body">
-            ${diagnosis.analysis ? `<div class="field"><div class="label">病情分析</div><div class="value">${escapeHtml(diagnosis.analysis)}</div></div>` : ''}
+            ${diagnosis.analysis ? `<div class="field"><div class="label">病情分析</div><div class="value">${formatContent(diagnosis.analysis)}</div></div>` : ''}
             ${conditions ? `<div class="field"><div class="label">可能相关</div><div class="conditions">${conditions}</div></div>` : ''}
             ${diagnosis.severity ? `<div class="field"><div class="label">紧急程度</div><span class="severity ${diagnosis.severity}">${severityLabel(diagnosis.severity)}</span></div>` : ''}
             ${diagnosis.department ? `<div class="field"><div class="label">推荐科室</div><div class="value">🏥 ${escapeHtml(diagnosis.department)}</div></div>` : ''}
-            ${diagnosis.recommendation ? `<div class="field"><div class="label">就医建议</div><div class="value">${escapeHtml(diagnosis.recommendation)}</div></div>` : ''}
+            ${diagnosis.recommendation ? `<div class="field"><div class="label">就医建议</div><div class="value">${formatContent(diagnosis.recommendation)}</div></div>` : ''}
         </div>
     `;
 
@@ -1123,7 +1191,26 @@ function escapeHtml(str) {
     return d.innerHTML;
 }
 
+// ── Markdown 渲染配置 ──
+if (typeof marked !== 'undefined') {
+    marked.setOptions({
+        breaks: true,       // GFM: 单换行→<br>
+        gfm: true,          // GitHub Flavored Markdown
+        headerIds: false,   // 不生成 header id
+        mangle: false       // 不编码邮箱
+    });
+}
+
 function formatContent(text) {
+    if (typeof marked !== 'undefined' && marked.parse) {
+        // marked 渲染后仍然做基本安全清理
+        let html = marked.parse(text);
+        // 移除 <script> 和事件属性（XSS 防护）
+        html = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+        html = html.replace(/\bon\w+\s*=/gi, ' data-removed=');
+        return '<div class="md-content">' + html + '</div>';
+    }
+    // fallback: 原有简单渲染
     return escapeHtml(text)
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\n/g, '<br>');
