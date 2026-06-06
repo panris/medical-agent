@@ -73,10 +73,16 @@ public class ChatController {
             long startTime = System.currentTimeMillis();
             try {
                 AgentState state = getOrCreateState(request.getSessionId());
+                boolean isNewSession = state.getMessages().isEmpty();
 
                 // 输入脱敏
                 String sanitized = sensitiveDataFilter.filter(request.getMessage());
                 state.getMessages().add(new AgentState.Message("user", sanitized));
+
+                // 新会话：保存侧边栏元数据
+                if (isNewSession) {
+                    sessionRepository.saveMetadata(request.getSessionId(), request.getMessage());
+                }
 
                 // 执行状态图（到 diagnose 节点前）
                 List<StepResult> results = graphOrchestrator.executeUntilBlock(state);
@@ -196,7 +202,16 @@ public class ChatController {
     @PostMapping("/session/{sessionId}/end")
     public Map<String, Object> endSession(@PathVariable String sessionId) {
         sessionRepository.delete(sessionId);
+        sessionRepository.deleteMetadata(sessionId);
         return Map.of("status", "completed", "sessionId", sessionId);
+    }
+
+    /**
+     * 会话列表（侧边栏）
+     */
+    @GetMapping("/sessions")
+    public List<Map<String, Object>> listSessions() {
+        return sessionRepository.listSessions();
     }
 
     private AgentState getOrCreateState(String sessionId) {
