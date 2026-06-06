@@ -6,6 +6,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * Embedding 服务 (T1.3)
  * 调用外部 API 生成文本向量
@@ -15,7 +18,7 @@ public class EmbeddingService {
 
     private static final Logger log = LoggerFactory.getLogger(EmbeddingService.class);
 
-    @Value("${embedding.api-url:https://api.openai.com/v1/embeddings}")
+    @Value("${embedding.base-url:https://api.openai.com/v1}/embeddings")
     private String apiUrl;
 
     @Value("${embedding.api-key:}")
@@ -24,7 +27,7 @@ public class EmbeddingService {
     @Value("${embedding.model:text-embedding-3-small}")
     private String model;
 
-    @Value("${embedding.dimension:768}")
+    @Value("${embedding.dimension:1536}")
     private int dimension;
 
     private final RestTemplate restTemplate = new RestTemplate();

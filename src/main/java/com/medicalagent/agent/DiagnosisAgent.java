@@ -5,16 +5,22 @@ import com.medicalagent.model.AgentState;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.StreamingResponseHandler;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 诊断建议 Agent (T2.5)
  * 组装 Prompt，调用 LLM 输出结构化 JSON，附带免责声明
+ * 支持同步和流式两种调用模式
  */
 @Component
 public class DiagnosisAgent {
@@ -41,8 +47,38 @@ public class DiagnosisAgent {
             }
             """;
 
+    /** 流式用的 prompt：先输出可读文本，最后输出 JSON */
+    private static final String STREAMING_SYSTEM_PROMPT = """
+            你是一个智能医疗问诊助手。根据患者的症状描述和检索到的医疗知识，给出初步分析和建议。
+
+            规则：
+            1. 这只是初步分析，不能替代专业医生的诊断
+            2. 如果症状严重，必须明确建议就医
+            3. 不要开具处方药
+
+            请按以下格式输出，先输出用户可读的分析文本，最后输出结构化 JSON：
+
+            ## 病情分析
+            （详细分析患者的症状，可能的原因等）
+
+            ## 可能相关
+            - 症状1
+            - 症状2
+
+            ## 就医建议
+            （具体的建议措施）
+
+            ## 推荐科室
+            （推荐的医院科室）
+
+            ---JSON---
+            {"analysis":"...","possible_conditions":["..."],"severity":"low|medium|high|critical","recommendation":"...","department":"...","disclaimer":true}
+            """;
+
     private static final String DISCLAIMER =
             "【免责声明】以上分析仅供参考，不构成医疗诊断。如有不适请及时前往正规医疗机构就诊。";
+
+    private static final String JSON_MARKER = "---JSON---";
 
     private final ModelFactory modelFactory;
 
@@ -51,8 +87,7 @@ public class DiagnosisAgent {
     }
 
     /**
-     * 执行诊断
-     * @return 诊断结果 Map（含 disclaimer）
+     * 执行诊断（同步模式）
      */
     public Map<String, Object> diagnose(AgentState state) {
         String prompt = buildPrompt(state);
@@ -74,6 +109,153 @@ public class DiagnosisAgent {
         state.setNeedsMoreInfo(false);
 
         return result;
+    }
+
+    /**
+     * 流式诊断 — 逐 token 回调，返回 CompletableFuture 等待完成
+     *
+     * @param state    当前状态
+     * @param onToken  每个 token 的回调（可读文本部分）
+     * @return CompletableFuture 完成时返回结构化诊断结果
+     */
+    public CompletableFuture<Map<String, Object>> diagnoseStreaming(
+            AgentState state,
+            java.util.function.Consumer<String> onToken) {
+
+        String prompt = buildPrompt(state);
+        String retrievedContext = buildRetrievedContext(state);
+        String userContent = prompt + "\n\n" + retrievedContext;
+
+        StreamingChatLanguageModel streamingModel = modelFactory.getDefaultStreamingModel();
+        ChatLanguageModel syncModel = modelFactory.getDefaultModel();
+
+        // 如果流式模型不可用，降级到同步
+        if (streamingModel == null) {
+            if (syncModel == null) {
+                Map<String, Object> fallback = mockDiagnose();
+                fallback.put("disclaimer", true);
+                fallback.put("disclaimer_text", DISCLAIMER);
+                state.setDiagnosisResult(fallback);
+                state.setCurrentAgent("diagnose");
+                state.setNeedsMoreInfo(false);
+                return CompletableFuture.completedFuture(fallback);
+            }
+            // 同步模式：一次性拿到结果
+            try {
+                Map<String, Object> result = callLLM(prompt, retrievedContext);
+                result.put("disclaimer", true);
+                result.put("disclaimer_text", DISCLAIMER);
+                state.setDiagnosisResult(result);
+                state.setCurrentAgent("diagnose");
+                state.setNeedsMoreInfo(false);
+                // 把整个结果作为一次 token 发送
+                StringBuilder displayText = new StringBuilder();
+                displayText.append("📋 **初步分析**\n\n");
+                displayText.append(result.getOrDefault("analysis", "")).append("\n\n");
+                @SuppressWarnings("unchecked")
+                List<String> conditions = (List<String>) result.getOrDefault("possible_conditions", List.of());
+                if (!conditions.isEmpty()) {
+                    displayText.append("🔍 **可能相关**：").append(String.join("、", conditions)).append("\n\n");
+                }
+                displayText.append("🏥 **推荐科室**：").append(result.getOrDefault("department", "请咨询导诊")).append("\n\n");
+                displayText.append("💊 **建议**：").append(result.getOrDefault("recommendation", "")).append("\n\n");
+                onToken.accept(displayText.toString());
+                return CompletableFuture.completedFuture(result);
+            } catch (Exception e) {
+                log.error("Sync LLM call failed", e);
+                Map<String, Object> fallback = mockDiagnose();
+                fallback.put("disclaimer", true);
+                fallback.put("disclaimer_text", DISCLAIMER);
+                state.setDiagnosisResult(fallback);
+                state.setCurrentAgent("diagnose");
+                state.setNeedsMoreInfo(false);
+                return CompletableFuture.completedFuture(fallback);
+            }
+        }
+
+        // 流式模式
+        CompletableFuture<Map<String, Object>> future = new CompletableFuture<>();
+        StringBuilder fullResponse = new StringBuilder();
+        AtomicReference<Boolean> jsonStarted = new AtomicReference<>(false);
+        StringBuilder jsonBuffer = new StringBuilder();
+
+        streamingModel.generate(
+                List.of(SystemMessage.from(STREAMING_SYSTEM_PROMPT), UserMessage.from(userContent)),
+                new StreamingResponseHandler<AiMessage>() {
+                    @Override
+                    public void onNext(String partialToken) {
+                        fullResponse.append(partialToken);
+
+                        String current = fullResponse.toString();
+                        int jsonIdx = current.indexOf(JSON_MARKER);
+                        if (jsonIdx >= 0) {
+                            if (!jsonStarted.get()) {
+                                jsonStarted.set(true);
+                                jsonBuffer.append(current.substring(jsonIdx + JSON_MARKER.length()));
+                            } else {
+                                jsonBuffer.append(partialToken);
+                            }
+                        } else if (!jsonStarted.get()) {
+                            onToken.accept(partialToken);
+                        } else {
+                            jsonBuffer.append(partialToken);
+                        }
+                    }
+
+                    @Override
+                    public void onComplete(Response<AiMessage> response) {
+                        try {
+                            Map<String, Object> result = parseStreamingResult(fullResponse.toString());
+                            result.put("disclaimer", true);
+                            result.put("disclaimer_text", DISCLAIMER);
+                            state.setDiagnosisResult(result);
+                            state.setCurrentAgent("diagnose");
+                            state.setNeedsMoreInfo(false);
+                            future.complete(result);
+                        } catch (Exception e) {
+                            log.warn("Failed to parse streaming result, using fallback", e);
+                            Map<String, Object> fallback = mockDiagnose();
+                            fallback.put("disclaimer", true);
+                            fallback.put("disclaimer_text", DISCLAIMER);
+                            state.setDiagnosisResult(fallback);
+                            state.setCurrentAgent("diagnose");
+                            state.setNeedsMoreInfo(false);
+                            future.complete(fallback);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable error) {
+                        log.error("Streaming LLM error", error);
+                        Map<String, Object> fallback = mockDiagnose();
+                        fallback.put("disclaimer", true);
+                        fallback.put("disclaimer_text", DISCLAIMER);
+                        state.setDiagnosisResult(fallback);
+                        state.setCurrentAgent("diagnose");
+                        state.setNeedsMoreInfo(false);
+                        future.complete(fallback);
+                    }
+                }
+        );
+
+        return future;
+    }
+
+    private Map<String, Object> parseStreamingResult(String fullText) {
+        int jsonIdx = fullText.indexOf(JSON_MARKER);
+        String jsonPart;
+        if (jsonIdx >= 0) {
+            jsonPart = fullText.substring(jsonIdx + JSON_MARKER.length()).trim();
+        } else {
+            // 没有 JSON marker，尝试从最后一个 { 解析
+            int lastBrace = fullText.lastIndexOf('{');
+            if (lastBrace >= 0) {
+                jsonPart = fullText.substring(lastBrace).trim();
+            } else {
+                throw new RuntimeException("No JSON found in streaming response");
+            }
+        }
+        return parseDiagnosisResponse(jsonPart);
     }
 
     private String buildPrompt(AgentState state) {
@@ -107,6 +289,9 @@ public class DiagnosisAgent {
 
     private Map<String, Object> callLLM(String prompt, String context) {
         ChatLanguageModel model = modelFactory.getDefaultModel();
+        if (model == null) {
+            throw new IllegalStateException("AI 模型未配置，请在 config.html 页面配置 API Key");
+        }
         String userContent = prompt + "\n\n" + context;
         AiMessage response = model.generate(
                 SystemMessage.from(SYSTEM_PROMPT),

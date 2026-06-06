@@ -3,6 +3,8 @@ package com.medicalagent.agent;
 import com.medicalagent.model.AgentState;
 import com.medicalagent.repository.HybridSearchRepository;
 import com.medicalagent.service.EmbeddingService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -14,6 +16,8 @@ import java.util.stream.Collectors;
  */
 @Component
 public class RetrievalAgent {
+
+    private static final Logger log = LoggerFactory.getLogger(RetrievalAgent.class);
 
     private static final double CONFIDENCE_THRESHOLD = 0.4;
 
@@ -35,18 +39,24 @@ public class RetrievalAgent {
         if (query == null || query.isBlank()) {
             state.setConfidenceScore(0.0);
             state.setCurrentAgent("retrieval");
-            return false;
+            // 没有查询条件也继续诊断（LLM 自身有知识）
+            return true;
         }
 
         List<Map<String, Object>> docs;
 
-        // 先尝试生成向量，走混合检索
-        float[] embedding = embeddingService.embed(query);
-        if (embedding != null) {
-            docs = searchRepository.search(query, embedding);
-        } else {
-            // 向量生成失败，降级为纯文本检索
-            docs = searchRepository.searchTextOnly(query);
+        try {
+            // 先尝试生成向量，走混合检索
+            float[] embedding = embeddingService.embed(query);
+            if (embedding != null) {
+                docs = searchRepository.search(query, embedding);
+            } else {
+                // 向量生成失败，降级为纯文本检索
+                docs = searchRepository.searchTextOnly(query);
+            }
+        } catch (Exception e) {
+            log.warn("Retrieval failed, proceeding to diagnosis with LLM only", e);
+            docs = List.of();
         }
 
         double avgConfidence = docs.stream()
@@ -58,7 +68,9 @@ public class RetrievalAgent {
         state.setConfidenceScore(avgConfidence);
         state.setCurrentAgent("retrieval");
 
-        return avgConfidence >= CONFIDENCE_THRESHOLD;
+        // 即使检索置信度不足也继续诊断，LLM 自身有医疗知识
+        // 知识库只是补充参考，不应成为诊断的前置阻塞条件
+        return true;
     }
 
     private String buildQuery(AgentState state) {

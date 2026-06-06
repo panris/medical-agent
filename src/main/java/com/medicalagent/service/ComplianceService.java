@@ -1,5 +1,6 @@
 package com.medicalagent.service;
 
+import com.medicalagent.repository.AuditRepository;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -8,14 +9,20 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 合规审计服务 (T5.2)
+ * 合规审计服务 (T5.2) + D-06: 审计落库
  * 记录问诊链路，SSE 最后一帧追加 disclaimer
  */
 @Component
 public class ComplianceService {
 
+    private final AuditRepository auditRepository;
+
+    public ComplianceService(AuditRepository auditRepository) {
+        this.auditRepository = auditRepository;
+    }
+
     /**
-     * 构建合规审计日志
+     * 构建合规审计日志并持久化
      */
     public Map<String, Object> buildAuditLog(String sessionId, String intent,
                                                java.util.List<Map<String, Object>> retrievedDocs,
@@ -30,7 +37,11 @@ public class ComplianceService {
         log.put("severity", diagnosisResult != null ? diagnosisResult.get("severity") : "unknown");
         log.put("department", diagnosisResult != null ? diagnosisResult.get("department") : "unknown");
         log.put("latency_ms", latencyMs);
-        log.put("disclaimer_shown", true); // 始终为 true（强制展示）
+        log.put("disclaimer_shown", true);
+
+        // D-06: 持久化到 consultation_records
+        auditRepository.saveAudit(sessionId, intent, retrievedDocs, diagnosisResult, confidenceScore, latencyMs);
+
         return log;
     }
 

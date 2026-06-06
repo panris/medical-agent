@@ -70,7 +70,7 @@ public class GraphOrchestrator {
             StepResult result = executeStep(state);
             results.add(result);
 
-            if (result.finished || result.needsUserInput) {
+            if (result.finished || result.needsUserInput || result.isPendingExecution()) {
                 break;
             }
         }
@@ -95,9 +95,16 @@ public class GraphOrchestrator {
         if (question == null) {
             // 信息收集完毕，回到路由判断下一步
             state.setCurrentAgent("router");
+            // 防止 maxSteps 内多次 collect → router 死循环
+            state.setTurnCount(state.getTurnCount() + 1);
+            if (state.getTurnCount() > 5) {
+                // 强制进入诊断
+                state.setCurrentAgent("diagnose");
+                return new StepResult("diagnose", null, false);
+            }
             return executeStep(state);
         }
-        return new StepResult("collect_info", question, false);
+        return new StepResult("collect_info", question, false, true);
     }
 
     private StepResult executeRetrieval(AgentState state) {
@@ -133,29 +140,14 @@ public class GraphOrchestrator {
         return new StepResult("emergency", message, true);
     }
 
+    /**
+     * diagnose 节点 — 只标记状态，不执行 LLM
+     * 实际的 LLM 调用由 ChatController 决定（同步/流式）
+     */
     private StepResult executeDiagnose(AgentState state) {
-        Map<String, Object> result = diagnosisAgent.diagnose(state);
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("📋 **初步分析**\n\n");
-        sb.append(result.getOrDefault("analysis", ""));
-        sb.append("\n\n");
-
-        @SuppressWarnings("unchecked")
-        List<String> conditions = (List<String>) result.getOrDefault("possible_conditions", List.of());
-        if (!conditions.isEmpty()) {
-            sb.append("🔍 **可能相关**：").append(String.join("、", conditions)).append("\n\n");
-        }
-
-        sb.append("🏥 **推荐科室**：").append(result.getOrDefault("department", "请咨询导诊")).append("\n\n");
-        sb.append("💊 **建议**：").append(result.getOrDefault("recommendation", "")).append("\n\n");
-
-        Object disclaimer = result.get("disclaimer_text");
-        if (disclaimer != null) {
-            sb.append("⚠️ ").append(disclaimer);
-        }
-
-        return new StepResult("diagnose", sb.toString(), true);
+        // 标记当前节点为 diagnose，但不执行 LLM
+        // Controller 会根据情况调用 DiagnosisAgent.diagnose() 或 diagnoseStreaming()
+        return new StepResult("diagnose", null, false);
     }
 
     /**
@@ -167,11 +159,24 @@ public class GraphOrchestrator {
         private final boolean finished;
         private final boolean needsUserInput;
 
+        public StepResult(String node, String message, boolean finished, boolean needsUserInput) {
+            this.node = node;
+            this.message = message;
+            this.finished = finished;
+            this.needsUserInput = needsUserInput;
+        }
+
         public StepResult(String node, String message, boolean finished) {
             this.node = node;
             this.message = message;
             this.finished = finished;
-            this.needsUserInput = message != null && !finished;
+            // diagnose 节点 message 为 null 时标记为待执行（由 Controller 接管）
+            this.needsUserInput = false;
+        }
+
+        /** 是否需要 Controller 接管执行（如流式 LLM 调用） */
+        public boolean isPendingExecution() {
+            return "diagnose".equals(node) && message == null && !finished;
         }
 
         public String getNode() { return node; }

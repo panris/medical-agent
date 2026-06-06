@@ -1,6 +1,7 @@
 package com.medicalagent.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.medicalagent.agent.DiagnosisAgent;
 import com.medicalagent.agent.GraphOrchestrator;
 import com.medicalagent.agent.GraphOrchestrator.StepResult;
 import com.medicalagent.filter.SensitiveDataFilter;
@@ -20,8 +21,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * 聊天 API (T4.2 + T5.1 + T5.2)
- * SSE (SseEmitter) + Redis Session + 输入脱敏 + 合规审计
+ * 聊天 API
+ * SSE (SseEmitter) + 流式 token 推送 + Redis Session + 输入脱敏 + 合规审计
  */
 @RestController
 @RequestMapping("/api/v1/chat")
@@ -33,6 +34,9 @@ public class ChatController {
 
     @Autowired
     private GraphOrchestrator graphOrchestrator;
+
+    @Autowired
+    private DiagnosisAgent diagnosisAgent;
 
     @Autowired
     private SensitiveDataFilter sensitiveDataFilter;
@@ -48,49 +52,56 @@ public class ChatController {
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamChat(@RequestBody ChatRequest request) {
-        SseEmitter emitter = new SseEmitter(120_000L); // 2 分钟超时
+        SseEmitter emitter = new SseEmitter(120_000L);
 
         sseExecutor.execute(() -> {
             long startTime = System.currentTimeMillis();
             try {
                 AgentState state = getOrCreateState(request.getSessionId());
 
-                // T5.1: 输入脱敏
+                // 输入脱敏
                 String sanitized = sensitiveDataFilter.filter(request.getMessage());
                 state.getMessages().add(new AgentState.Message("user", sanitized));
 
+                // 执行状态图（到 diagnose 节点前）
                 List<StepResult> results = graphOrchestrator.executeUntilBlock(state);
 
                 for (StepResult result : results) {
+                    // diagnose 节点标记为 pendingExecution（message=null），需要 Controller 执行流式 LLM
+                    if (result.isPendingExecution()) {
+                        streamDiagnosis(emitter, state);
+                        continue;
+                    }
+
+                    // 其他节点的 null message 直接跳过
                     if (result.getMessage() == null) continue;
 
+                    // D-01: 将 assistant 消息写入 state（用于历史恢复）
+                    state.getMessages().add(new AgentState.Message("assistant", result.getMessage()));
+
+                    // 非 diagnose 节点，正常推送
                     Map<String, Object> event = new LinkedHashMap<>();
                     event.put("node", result.getNode());
                     event.put("content", result.getMessage());
-                    event.put("finished", result.isFinished());
-
-                    if ("diagnose".equals(result.getNode()) && state.getDiagnosisResult() != null) {
-                        event.put("diagnosis", state.getDiagnosisResult());
-                    }
-
+                    event.put("finished", false);
                     emitter.send(SseEmitter.event()
                             .name("message")
                             .data(mapper.writeValueAsString(event)));
                 }
 
-                // T5.2: 合规审计
+                // 合规审计
                 long latencyMs = System.currentTimeMillis() - startTime;
                 log.info("Audit: {}", complianceService.buildAuditLog(
                         request.getSessionId(), state.getCurrentAgent(),
                         state.getRetrievedDocs(), state.getDiagnosisResult(),
                         state.getConfidenceScore(), latencyMs));
 
-                // T5.2: 最后一帧 disclaimer
+                // 最后一帧 disclaimer
                 emitter.send(SseEmitter.event()
                         .name("disclaimer")
                         .data(mapper.writeValueAsString(complianceService.buildDisclaimerEvent())));
 
-                // 持久化到 Redis
+                // 持久化
                 sessionRepository.save(request.getSessionId(), state, sessionTtlMinutes);
 
                 emitter.complete();
@@ -109,6 +120,46 @@ public class ChatController {
         return emitter;
     }
 
+    /**
+     * 流式推送诊断结果 — 逐 token 发送
+     */
+    private void streamDiagnosis(SseEmitter emitter, AgentState state) {
+        try {
+            diagnosisAgent.diagnoseStreaming(state, token -> {
+                try {
+                    Map<String, Object> tokenEvent = new LinkedHashMap<>();
+                    tokenEvent.put("type", "token");
+                    tokenEvent.put("content", token);
+                    emitter.send(SseEmitter.event()
+                            .name("message")
+                            .data(mapper.writeValueAsString(tokenEvent)));
+                } catch (Exception e) {
+                    log.warn("Failed to send streaming token", e);
+                }
+            }).thenAccept(result -> {
+                try {
+                    // 发送结构化诊断数据（用于卡片渲染）
+                    Map<String, Object> diagEvent = new LinkedHashMap<>();
+                    diagEvent.put("type", "diagnosis");
+                    diagEvent.put("diagnosis", result);
+                    diagEvent.put("finished", true);
+                    emitter.send(SseEmitter.event()
+                            .name("message")
+                            .data(mapper.writeValueAsString(diagEvent)));
+
+                    // D-01: 将诊断结果文本写入 state
+                    if (result != null && result.containsKey("summary")) {
+                        state.getMessages().add(new AgentState.Message("assistant", result.get("summary").toString()));
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to send diagnosis event", e);
+                }
+            }).join(); // 等待流式完成
+        } catch (Exception e) {
+            log.error("Streaming diagnosis failed", e);
+        }
+    }
+
     @GetMapping("/session/{sessionId}/history")
     public Map<String, Object> getHistory(@PathVariable String sessionId) {
         String json = sessionRepository.load(sessionId);
@@ -119,6 +170,7 @@ public class ChatController {
                     "sessionId", sessionId,
                     "messages", state.getMessages(),
                     "patientHistory", state.getPatientHistory() != null ? state.getPatientHistory() : Map.of(),
+                    "diagnosisResult", state.getDiagnosisResult() != null ? state.getDiagnosisResult() : Map.of(),
                     "status", state.isNeedsMoreInfo() ? "active" : "completed"
             );
         } catch (Exception e) {

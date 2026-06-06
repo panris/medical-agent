@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Agent 调用流程图</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+        .diagram-container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .diagram-container h2 {
+            font-size: 20px;
+            color: #374151;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .mermaid {
+            text-align: center;
+            overflow-x: auto;
+        }
+        .legend {
+            background: #f9fafb;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+        .legend h3 {
+            font-size: 16px;
+            color: #374151;
+            margin-bottom: 15px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #4b5563;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
+            font-size: 12px;
+        }
+        @media (max-width: 768px) {
+            .header { padding: 20px; }
+            .header h1 { font-size: 22px; }
+            .diagram-container { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🏥 Medical Agent 调用流程图</h1>
+    <p>智能医疗问诊系统 - 完整调用链路与状态图</p>
+</div>
+
+<!-- 图1: 整体架构 -->
+<div class="diagram-container">
+    <h2>📐 图1: 整体系统架构</h2>
+    <div class="mermaid">
+graph TB
+    subgraph "前端 (Frontend)"
+        A[🖥️ 聊天界面<br/>index.html] --> B[📡 SSE 请求<br/>/api/v1/chat/stream]
+        C[⚙️ 配置界面<br/>config.html] --> D[💾 保存配置<br/>/api/v1/config/llm]
+    end
+
+    subgraph "后端 (Backend - Spring Boot)"
+        E[🎮 ChatController<br/>SSE 端点] --> F[🎯 GraphOrchestrator<br/>状态图编排]
+        G[⚙️ LlmConfigController<br/>配置管理] --> H[📁 LlmConfigService<br/>配置读写]
+    end
+
+    subgraph "Agent 层"
+        F --> I[🚦 RouterAgent<br/>意图分类]
+        F --> J[📋 CollectInfoAgent<br/>信息采集]
+        F --> K[🔍 RetrievalAgent<br/>知识检索]
+        F --> L[🩺 DiagnosisAgent<br/>诊断建议]
+    end
+
+    subgraph "模型层"
+        L --> M[🏭 ModelFactory<br/>模型工厂]
+        M --> N[🤖 ChatLanguageModel<br/>LLM 调用]
+    end
+
+    subgraph "数据层"
+        K --> O[🗄️ HybridSearchRepository<br/>混合检索]
+        O --> P[(H2 内存数据库<br/>医疗知识库)]
+        F --> Q[💾 SessionRepository<br/>会话管理]
+    end
+
+    style A fill:#e0e7ff,stroke:#4338ca,stroke-width:2px
+    style B fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    style E fill:#fef3c7,stroke:#d97706,stroke-width:2px
+    style F fill:#fef3c7,stroke:#d97706,stroke-width:2px
+    style I fill:#d1fae5,stroke:#059669,stroke-width:2px
+    style J fill:#d1fae5,stroke:#059669,stroke-width:2px
+    style K fill:#d1fae5,stroke:#059669,stroke-width:2px
+    style L fill:#d1fae5,stroke:#059669,stroke-width:2px
+    style N fill:#ede9fe,stroke:#7c3aed,stroke-width:2px
+    </div>
+</div>
+
+<!-- 图2: 状态图执行流程 -->
+<div class="diagram-container">
+    <h2>🔄 图2: 状态图执行流程 (GraphOrchestrator)</h2>
+    <div class="mermaid">
+stateDiagram-v2
+    [*] --> router: 会话开始
+
+    router --> collect_info: 信息不足<br/>intent=collect_info
+    router --> retrieval: 信息充足<br/>intent=retrieval
+    router --> emergency: 检测到紧急症状<br/>intent=emergency
+    router --> end: 告别语<br/>intent=end
+
+    collect_info --> router: 信息收集完成<br/>needsMoreInfo=false
+    collect_info --> router: 用户回复<br/>继续收集
+
+    retrieval --> diagnose: 检索成功<br/>(永远返回true)
+    retrieval --> collect_info: 检索失败<br/>需要更多信息
+
+    diagnose --> [*]: 诊断完成<br/>finished=true
+
+    emergency --> [*]: 紧急处理完成<br/>finished=true
+
+    end --> [*]: 会话结束
+
+    note right of router
+        RouterAgent.route()
+        - 正则匹配意图
+        - 返回下一个节点
+    end note
+
+    note right of collect_info
+        CollectInfoAgent.collect()
+        - 多轮追问(最多3轮)
+        - 提取结构化信息
+    end note
+
+    note right of retrieval
+        RetrievalAgent.retrieve()
+        - 混合检索(向量+全文)
+        - RRF 融合评分
+        - 失败时也继续诊断
+    end note
+
+    note right of diagnose
+        DiagnosisAgent.diagnose()
+        - 组装 Prompt
+        - 调用 LLM
+        - 返回结构化诊断
+    end note
+    </div>
+</div>
+
+<!-- 图3: 单次聊天请求完整链路 -->
+<div class="diagram-container">
+    <h2>🔀 图3: 单次聊天请求完整链路</h2>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as 👤 用户
+    participant F as 🖥️ 前端<br/>(index.html)
+    participant C as 🎮 ChatController
+    participant G as 🎯 GraphOrchestrator
+    participant R as 🚦 RouterAgent
+    participant I as 📋 CollectInfoAgent
+    participant V as 🔍 RetrievalAgent
+    participant D as 🩺 DiagnosisAgent
+    participant M as 🏭 ModelFactory
+    participant L as 🤖 LLM<br/>(DeepSeek)
+
+    U->>F: 输入症状描述
+    F->>C: POST /api/v1/chat/stream<br/>(SSE 请求)
+
+    loop 状态图执行 (最多10步)
+        C->>G: executeUntilBlock(state)
+
+        G->>R: route(state)
+        R-->>G: nextNode = "collect_info" | "retrieval" | "emergency" | "end"
+
+        alt nextNode = "collect_info"
+            G->>I: collect(state)
+            I-->>G: 追问问题 或 null(收集完成)
+            G-->>C: SSE: 追问消息
+        else nextNode = "retrieval"
+            G->>V: retrieve(state)
+            V->>V: 混合检索<br/>(向量+全文)
+            V-->>G: true (永远继续)
+            G->>D: diagnose(state)
+            D->>M: getDefaultModel()
+            M->>L: 调用 LLM API
+            L-->>D: 诊断结果 (JSON)
+            D-->>G: 诊断完成
+            G-->>C: SSE: 诊断结果 + disclaimer
+        else nextNode = "emergency"
+            G-->>C: SSE: 紧急处理指引
+        else nextNode = "end"
+            G-->>C: SSE: 会话结束
+        end
+    end
+
+    C->>C: 发送 disclaimer 事件
+    C->>C: 保存会话到 Redis
+    C-->>F: SSE 流结束
+    F->>F: 解析 SSE 事件
+    F->>U: 显示诊断结果
+    </sequenceDiagram>
+    </div>
+</div>
+
+<!-- 图4: 模型配置流程 -->
+<div class="diagram-container">
+    <h2>⚙️ 图4: 模型配置流程</h2>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as 👤 用户
+    participant F as ⚙️ 配置界面<br/>(config.html)
+    participant C as ⚙️ LlmConfigController
+    participant S as 📁 LlmConfigService
+    participant M as 🏭 ModelFactory
+    participant L as 🤖 LLM API<br/>(DeepSeek/Evol)
+
+    U->>F: 填写 API Key + Base URL
+    F->>F: 前端校验<br/>(格式+非空)
+
+    U->>F: 点击"保存配置"
+    F->>C: POST /api/v1/config/llm<br/>(保存配置)
+    C->>S: saveConfig(config)
+    S->>S: 写入 config/llm-config.json
+    S-->>C: 保存成功
+    C-->>F: {success: true}
+    F->>F: 清空缓存<br/>(evictCache())
+
+    U->>F: 点击"测试连通性"
+    F->>C: POST /api/v1/config/llm/test<br/>(读取已保存的配置)
+    C->>S: testConnection(config)
+    S->>S: 构造 POST /chat/completions
+    S->>L: 发送测试请求<br/>(max_tokens=5)
+    L-->>S: 200 OK 或错误
+
+    alt 连接成功
+        S-->>C: {success: true, statusCode: 200}
+        C-->>F: 显示"连接成功" ✅
+    else 连接失败
+        S-->>C: {success: false, message: "..."}
+        C-->>F: 显示错误信息 ❌
+    end
+
+    note over F,L
+        测试连通性使用真实 API 调用
+        不是 ping，是 POST /chat/completions
+    end
+    </sequenceDiagram>
+    </div>
+</div>
+
+<!-- 图5: 诊断 Agent 详细流程 -->
+<div class="diagram-container">
+    <h2>🩺 图5: DiagnosisAgent 诊断流程详解</h2>
+    <div class="mermaid">
+graph TD
+    A[开始诊断] --> B[buildPrompt<br/>组装患者信息]
+    B --> C[buildRetrievedContext<br/>组装检索结果]
+    C --> D{检索结果<br/>是否为空?}
+
+    D -->|非空| E[context = 检索内容]
+    D -->|空| F[context = 未检索到相关知识]
+
+    E --> G[组装完整 Prompt]
+    F --> G
+
+    G --> H[callLLM<br/>调用 ModelFactory]
+    H --> I{模型是否<br/>可用?}
+
+    I -->|是| J[ChatLanguageModel.generate<br/>SystemMessage + UserMessage]
+    I -->|否| K[抛出异常<br/>AI 模型未配置]
+
+    J --> L{LLM 调用<br/>是否成功?}
+    K --> M[catch 异常<br/>使用 fallback]
+
+    L -->|成功| N[parseDiagnosisResponse<br/>解析 JSON 响应]
+    L -->|失败| M
+
+    M --> O[mockDiagnose<br/>返回默认诊断]
+    O --> P[添加 disclaimer]
+    P --> Q[返回诊断结果]
+
+    N --> R{响应是否是<br/>有效 JSON?}
+    R -->|是| S[返回解析后的 Map]
+    R -->|否| T[包装成 fallback 格式]
+    T --> S
+
+    S --> P
+
+    style A fill:#e0e7ff,stroke:#4338ca,stroke-width:2px
+    style J fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    style L fill:#fef3c7,stroke:#d97706,stroke-width:2px
+    style M fill:#fee2e2,stroke:#dc2626,stroke-width:2px
+    style Q fill:#d1fae5,stroke:#059669,stroke-width:2px
+    </div>
+</div>
+
+<!-- 图6: 检索 Agent 详细流程 -->
+<div class="diagram-container">
+    <h2>🔍 图6: RetrievalAgent 检索流程详解</h2>
+    <div class="mermaid">
+graph TD
+    A[开始检索] --> B[buildQuery<br/>组装查询语句]
+    B --> C{query 是否<br/>为空?}
+
+    C -->|是| D[设置 confidenceScore=0]
+    D --> E[返回 true<br/>(继续诊断)]
+
+    C -->|否| F[调用 EmbeddingService.embed<br/>生成向量]
+
+    F --> G{向量生成<br/>是否成功?}
+    G -->|成功| H[searchRepository.search<br/>混合检索]
+    G -->|失败| I[searchRepository.searchTextOnly<br/>纯文本检索]
+
+    H --> J[获取检索结果 docs]
+    I --> J
+
+    J --> K{检索是否<br/>抛出异常?}
+    K -->|是| L[catch 异常<br/>docs = 空列表]
+    K -->|否| M[计算平均置信度<br/>avgConfidence]
+
+    L --> N[设置 retrievedDocs=空]
+    M --> O[设置 retrievedDocs=docs]
+    N --> P[设置 confidenceScore=0]
+    O --> Q[设置 confidenceScore=avg]
+
+    P --> R[返回 true<br/>(永远继续)]
+
+    style A fill:#e0e7ff,stroke:#4338ca,stroke-width:2px
+    style E fill:#d1fae5,stroke:#059669,stroke-width:2px
+    style R fill:#d1fae5,stroke:#059669,stroke-width:2px
+    style L fill:#fee2e2,stroke:#dc2626,stroke-width:2px
+    </div>
+</div>
+
+<!-- 图7: 前端 SSE 处理流程 -->
+<div class="diagram-container">
+    <h2>📡 图7: 前端 SSE 处理流程</h2>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as 👤 用户
+    participant F as 🖥️ 前端 JS
+    participant S as 📡 SSE 流<br/>(EventSource)
+
+    U->>F: 点击发送 / 按 Enter
+    F->>F: 创建 AbortController
+    F->>S: fetch(ENDPOINT, {signal})
+
+    loop SSE 事件流
+        S->>S: reader.read()
+        S->>S: 解析 SSE 事件<br/>data: {...}
+
+        alt event.type = "message"
+            S->>F: 解析事件数据
+            F->>F: 判断 event.node
+            alt node = "collect_info"
+                F->>F: appendMessage('assistant',<br/>event.content)
+            else node = "diagnose"
+                F->>F: appendMessage('assistant',<br/>event.content)
+                F->>F: renderDiagnosisCard(<br/>event.diagnosis)
+            end
+        else event.type = "disclaimer"
+            S->>F: 解析事件数据
+            F->>F: appendDisclaimer(<br/>event.text)
+        else event.type = "error"
+            S->>F: 解析事件数据
+            F->>F: appendMessage('assistant',<br/>event.message)
+        end
+    end
+
+    S-->>F: 流结束 (done=true)
+    F->>F: 保存聊天历史到 localStorage
+    F->>U: 显示完整对话
+
+    note over F,S
+        AbortController 支持中断
+        用户发送新消息时,
+        会 abort 上一个请求
+    end
+    </sequenceDiagram>
+    </div>
+</div>
+
+<!-- 图8: 完整调用链路时序图 -->
+<div class="diagram-container">
+    <h2>⏱️ 图8: 完整调用链路时序图 (详细版)</h2>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as 👤 User
+    participant FE as Frontend
+    participant BE as ChatController
+    participant GO as GraphOrchestrator
+    participant RA as RouterAgent
+    participant CI as CollectInfoAgent
+    participant RT as RetrievalAgent
+    participant DA as DiagnosisAgent
+    participant MF as ModelFactory
+    participant LLM as DeepSeek API
+
+    Note over U,LLM: 第1轮: 用户输入症状
+    U->>FE: "头疼，持续两天了"
+    FE->>BE: POST /api/v1/chat/stream<br/>{sessionId, message}
+    BE->>BE: 输入脱敏 (SensitiveDataFilter)
+    BE->>GO: executeUntilBlock(state)
+
+    GO->>RA: route(state)
+    Note right of RA: 检查 patientHistory<br/>无 chief_complaint
+    RA-->>GO: nextNode = "collect_info"
+
+    GO->>CI: collect(state)
+    Note right of CI: 提取症状:<br/>chief_complaint="头疼，持续两天了"
+    CI->>CI: 检查缺失字段<br/>(duration, age_gender...)
+    CI-->>GO: "请问您主要有什么不舒服？"
+    GO-->>BE: StepResult(node=collect_info,<br/>message="请问您主要...")
+    BE-->>FE: SSE: data: {...}
+    FE->>U: 显示追问消息
+
+    Note over U,LLM: 第2轮: 用户回复
+    U->>FE: "头疼，太阳穴位置，持续两天"
+    FE->>BE: POST /api/v1/chat/stream
+    BE->>GO: executeUntilBlock(state)
+
+    GO->>RA: route(state)
+    Note right of RA: 有 chief_complaint<br/>无 duration
+    RA-->>GO: nextNode = "collect_info"
+
+    GO->>CI: collect(state)
+    Note right of CI: 提取 duration:<br/>"持续两天"
+    CI->>CI: 检查缺失字段<br/>(age_gender...)
+    CI-->>GO: "这个症状持续多久了？"
+    GO-->>BE: StepResult(node=collect_info,<br/>message="这个症状持续多久了？")
+    BE-->>FE: SSE: data: {...}
+
+    Note over U,LLM: 第3轮: 信息收集完成
+    U->>FE: "28岁，女性"
+    FE->>BE: POST /api/v1/chat/stream
+    BE->>GO: executeUntilBlock(state)
+
+    GO->>RA: route(state)
+    Note right of RA: 有 chief_complaint + duration<br/>信息充足
+    RA-->>GO: nextNode = "retrieval"
+
+    GO->>RT: retrieve(state)
+    RT->>RT: 混合检索<br/>(H2 空库, 返回空)
+    RT-->>GO: true (永远继续)
+
+    GO->>DA: diagnose(state)
+    DA->>DA: buildPrompt (患者信息)
+    DA->>DA: buildRetrievedContext (空)
+    DA->>MF: getDefaultModel()
+    MF->>MF: 创建 OpenAiChatModel
+    DA->>LLM: POST /v1/chat/completions<br/>(SystemMessage + UserMessage)
+    LLM-->>DA: {analysis: "...",<br/>possible_conditions: [...],<br/>severity: "medium",...}
+    DA-->>GO: 诊断完成
+    GO-->>BE: StepResult(node=diagnose,<br/>message="📋 初步分析...",<br/>finished=true)
+    BE->>BE: 发送 disclaimer 事件
+    BE->>BE: 保存会话到 Redis
+    BE-->>FE: SSE: data: {...}
+    FE->>U: 显示诊断结果 + 免责声明
+    </sequenceDiagram>
+    </div>
+</div>
+
+<!-- 图例 -->
+<div class="legend">
+    <h3>📝 图例说明</h3>
+    <div class="legend-item">
+        <div class="legend-color" style="background: #e0e7ff; border: 2px solid #4338ca;"></div>
+        <span><strong>前端组件</strong> - 用户界面与交互</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background: #fef3c7; border: 2px solid #d97706;"></div>
+        <span><strong>控制器/编排器</strong> - 请求入口与流程控制</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background: #d1fae5; border: 2px solid #059669;"></div>
+        <span><strong>Agent 组件</strong> - 业务逻辑处理单元</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background: #ede9fe; border: 2px solid #7c3aed;"></div>
+        <span><strong>模型/LLM</strong> - 大语言模型调用</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background: #fee2e2; border: 2px solid #dc2626;"></div>
+        <span><strong>异常处理</strong> - 错误捕获与降级策略</span>
+    </div>
+</div>
+
+<div class="footer">
+    <p>Medical Agent 智能医疗问诊系统 - 调用流程图</p>
+    <p>生成时间: 2026-06-05 23:24 | 使用 Mermaid.js 渲染</p>
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        themeVariables: {
+            primaryColor: '#667eea',
+            primaryTextColor: '#fff',
+            primaryBorderColor: '#4338ca',
+            lineColor: '#6b7280',
+            secondaryColor: '#d1fae5',
+            tertiaryColor: '#fef3c7',
+            background: '#ffffff',
+            mainBkg: '#e0e7ff',
+            nodeBorder: '#4338ca',
+            clusterBkg: '#f9fafb',
+            titleColor: '#374151',
+            edgeLabelBackground: '#ffffff',
+            treeTextColor: '#1f2937'
+        },
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+        },
+        sequence: {
+            useMaxWidth: true,
+            showSequenceNumbers: false,
+            wrap: true
+        },
+        state: {
+            useMaxWidth: true
+        }
+    });
+</script>
+
+</body>
+</html> 

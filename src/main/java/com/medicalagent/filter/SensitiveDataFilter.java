@@ -33,17 +33,13 @@ public class SensitiveDataFilter {
 
     /**
      * 脱敏处理
+     * 执行顺序：身份证 → 手机号 → 银行卡 → 姓名
+     * 银行卡正则需排除已被身份证脱敏的 18 位数字
      */
     public String filter(String input) {
         if (input == null) return null;
 
         String result = input;
-
-        // 手机号 → 138****1234
-        result = PHONE_PATTERN.matcher(result).replaceAll(m -> {
-            String phone = m.group().replaceAll("\\s|-", "");
-            return phone.substring(0, 3) + "****" + phone.substring(7);
-        });
 
         // 身份证 → 110***********1234
         result = ID_CARD_PATTERN.matcher(result).replaceAll(m -> {
@@ -51,9 +47,17 @@ public class SensitiveDataFilter {
             return id.substring(0, 3) + "***********" + id.substring(14);
         });
 
-        // 银行卡 → ****5678
+        // 手机号 → 138****1234
+        result = PHONE_PATTERN.matcher(result).replaceAll(m -> {
+            String phone = m.group().replaceAll("\\s|-", "");
+            return phone.substring(0, 3) + "****" + phone.substring(7);
+        });
+
+        // 银行卡 → ****5678（排除身份证脱敏后的 ***...格式）
         result = BANK_CARD_PATTERN.matcher(result).replaceAll(m -> {
             String card = m.group();
+            // 跳过含 * 的（已被身份证脱敏）
+            if (card.contains("*")) return card;
             return "****" + card.substring(card.length() - 4);
         });
 

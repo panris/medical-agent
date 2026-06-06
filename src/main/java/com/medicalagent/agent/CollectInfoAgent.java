@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 @Component
 public class CollectInfoAgent {
 
-    private static final int MAX_TURNS = 3;
+    private static final int MAX_TURNS = 5;
 
     /** 采集阶段定义（按优先级） */
     private static final List<QuestionPhase> PHASES = Arrays.asList(

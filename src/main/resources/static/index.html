@@ -4,219 +4,720 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>智能医疗问诊</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: #f5f7fa;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
+        :root {
+            --bg: #f0f4f8;
+            --surface: #ffffff;
+            --surface-elevated: #ffffff;
+            --border: #e2e8f0;
+            --border-subtle: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --brand: #0d9488;
+            --brand-dark: #0f766e;
+            --brand-light: #ccfbf1;
+            --brand-glow: rgba(13, 148, 136, 0.15);
+            --user-bubble: #0d9488;
+            --user-bubble-text: #ffffff;
+            --assistant-bubble: #ffffff;
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+            --warning-bg: #fffbeb;
+            --warning-border: #fde68a;
+            --warning-text: #92400e;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+            --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+            --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.08);
+            --header-h: 60px;
+            --input-h: auto;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
 
-        /* 顶部导航 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Header ── */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 16px 20px;
+            height: var(--header-h);
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .header-left {
             display: flex;
             align-items: center;
             gap: 12px;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            min-width: 0;
         }
-        .header-icon { font-size: 24px; }
-        .header-info h1 { font-size: 17px; font-weight: 600; }
-        .header-info p { font-size: 12px; opacity: 0.85; }
 
-        /* 消息列表 */
+        .logo {
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px var(--brand-glow);
+        }
+
+        .header-info { min-width: 0; }
+        .header-info h1 {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            line-height: 1.3;
+        }
+        .header-info p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #22c55e;
+            flex-shrink: 0;
+            animation: statusPulse 2s ease-in-out infinite;
+        }
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            font-size: 16px;
+        }
+        .icon-btn:hover {
+            background: var(--border-subtle);
+            color: var(--text-primary);
+            border-color: #cbd5e1;
+        }
+        .icon-btn:active { transform: scale(0.96); }
+
+        /* ── Chat area ── */
+        .chat-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            position: relative;
+        }
+
         .chat-container {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            overflow-x: hidden;
+            padding: 20px 16px 8px;
             scroll-behavior: smooth;
+            overscroll-behavior: contain;
         }
-        .message {
+
+        .chat-container::-webkit-scrollbar { width: 4px; }
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        /* ── Welcome ── */
+        .welcome {
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 32px 8px 24px;
+            animation: fadeUp 0.4s ease;
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .welcome-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: var(--brand-light);
+            color: var(--brand-dark);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
             margin-bottom: 16px;
+        }
+
+        .welcome h2 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .welcome > p {
+            font-size: 14px;
+            line-height: 1.65;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .emergency-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            background: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            color: var(--warning-text);
+            line-height: 1.5;
+            margin-bottom: 28px;
+        }
+        .emergency-banner strong { color: var(--danger); }
+
+        .suggest-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .suggest-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        @media (min-width: 480px) {
+            .suggest-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .suggest-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: left;
+        }
+        .suggest-card:hover {
+            border-color: var(--brand);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+        .suggest-card:active { transform: translateY(0); }
+        .suggest-card .icon { font-size: 22px; margin-bottom: 8px; display: block; }
+        .suggest-card .label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: block;
+        }
+        .suggest-card .desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            display: block;
+        }
+
+        /* ── Messages ── */
+        .message {
             display: flex;
             gap: 10px;
-            animation: fadeIn 0.3s ease;
+            margin-bottom: 20px;
+            animation: fadeUp 0.25s ease;
+            max-width: 680px;
         }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .message.user {
+            flex-direction: row-reverse;
+            margin-left: auto;
+        }
+        .message.assistant { margin-right: auto; }
 
-        .message.user { flex-direction: row-reverse; }
         .avatar {
-            width: 36px; height: 36px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px; flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+            margin-top: 2px;
         }
-        .message.assistant .avatar { background: linear-gradient(135deg, #667eea, #764ba2); }
-        .message.user .avatar { background: #e0e7ff; color: #4338ca; }
+        .message.assistant .avatar {
+            background: var(--brand-light);
+            color: var(--brand-dark);
+        }
+        .message.user .avatar {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .message-body { max-width: calc(100% - 42px); }
 
         .bubble {
-            max-width: 78%;
             padding: 12px 16px;
-            border-radius: 16px;
-            line-height: 1.6;
+            border-radius: var(--radius-lg);
+            line-height: 1.65;
             font-size: 14px;
             word-break: break-word;
         }
         .message.assistant .bubble {
-            background: white;
-            color: #1f2937;
+            background: var(--assistant-bubble);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
             border-top-left-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            box-shadow: var(--shadow-sm);
         }
         .message.user .bubble {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
+            background: var(--user-bubble);
+            color: var(--user-bubble-text);
             border-top-right-radius: 4px;
         }
 
-        /* 诊断卡片 */
+        .msg-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            padding: 0 4px;
+        }
+        .message.user .msg-time { text-align: right; }
+
+        /* ── Diagnosis card ── */
         .diagnosis-card {
-            background: white;
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-            border-left: 4px solid #667eea;
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            margin: 4px 0 20px 42px;
+            max-width: calc(680px - 42px);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            animation: fadeUp 0.3s ease;
         }
-        .diagnosis-card h3 { font-size: 14px; color: #374151; margin-bottom: 12px; }
-        .diagnosis-card .field { margin-bottom: 8px; }
-        .diagnosis-card .label { font-size: 12px; color: #6b7280; margin-bottom: 2px; }
-        .diagnosis-card .value { font-size: 14px; color: #111827; }
-        .diagnosis-card .conditions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .diagnosis-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 16px;
+            background: linear-gradient(135deg, var(--brand-light) 0%, #f0fdfa 100%);
+            border-bottom: 1px solid var(--border);
+        }
+        .diagnosis-header .icon {
+            width: 32px;
+            height: 32px;
+            background: var(--brand);
+            color: white;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .diagnosis-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .diagnosis-header span {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .diagnosis-body { padding: 4px 0; }
+
+        .diagnosis-card .field {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .diagnosis-card .field:last-child { border-bottom: none; }
+
+        .diagnosis-card .label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }
+        .diagnosis-card .value {
+            font-size: 14px;
+            color: var(--text-primary);
+            line-height: 1.55;
+        }
+
+        .diagnosis-card .conditions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
         .diagnosis-card .tag {
-            background: #ede9fe; color: #6d28d9;
-            padding: 2px 10px; border-radius: 12px; font-size: 12px;
+            background: var(--brand-light);
+            color: var(--brand-dark);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
         }
+
         .severity {
-            display: inline-block; padding: 2px 10px; border-radius: 12px;
-            font-size: 12px; font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
         }
         .severity.low { background: #d1fae5; color: #065f46; }
         .severity.medium { background: #fef3c7; color: #92400e; }
         .severity.high { background: #fee2e2; color: #991b1b; }
-        .severity.critical { background: #fecaca; color: #7f1d1d; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .severity.critical {
+            background: #fecaca;
+            color: #7f1d1d;
+            animation: criticalPulse 1.5s infinite;
+        }
+        @keyframes criticalPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.65; }
+        }
 
-        /* 免责声明 */
+        /* ── Disclaimer ── */
         .disclaimer {
-            background: #fffbeb; border: 1px solid #fde68a;
-            border-radius: 8px; padding: 10px 14px;
-            font-size: 12px; color: #92400e;
-            margin-top: 8px;
-        }
-
-        /* 快捷标签 */
-        .quick-tags {
-            padding: 8px 16px;
             display: flex;
+            align-items: flex-start;
             gap: 8px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+            background: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            border-radius: var(--radius-md);
+            padding: 10px 14px;
+            font-size: 12px;
+            color: var(--warning-text);
+            line-height: 1.5;
+            margin: 0 0 16px 42px;
+            max-width: calc(680px - 42px);
         }
-        .quick-tags::-webkit-scrollbar { display: none; }
-        .quick-tag {
+        .disclaimer::before {
+            content: '⚠️';
             flex-shrink: 0;
-            padding: 6px 14px;
-            border-radius: 20px;
-            background: white;
-            border: 1px solid #e5e7eb;
-            font-size: 13px;
-            color: #4b5563;
-            cursor: pointer;
-            transition: all 0.2s;
         }
-        .quick-tag:active { background: #667eea; color: white; border-color: #667eea; }
 
-        /* 输入区域 */
+        /* ── Typing indicator ── */
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            padding: 2px 0;
+        }
+        .typing-indicator span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            animation: typing 1.4s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.15s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        /* ── Input area ── */
+        .input-section {
+            flex-shrink: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 12px 16px calc(12px + var(--safe-bottom));
+        }
+
         .input-area {
-            background: white;
-            padding: 12px 16px;
-            border-top: 1px solid #e5e7eb;
             display: flex;
             gap: 10px;
             align-items: flex-end;
-            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            max-width: 720px;
+            margin: 0 auto;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: 6px 6px 6px 16px;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
+        .input-area:focus-within {
+            border-color: var(--brand);
+            box-shadow: 0 0 0 3px var(--brand-glow);
+        }
+
         .input-area textarea {
             flex: 1;
-            border: 1px solid #e5e7eb;
-            border-radius: 20px;
-            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            padding: 8px 0;
             font-size: 15px;
             resize: none;
             outline: none;
-            max-height: 100px;
-            min-height: 40px;
-            line-height: 1.4;
+            max-height: 120px;
+            min-height: 24px;
+            line-height: 1.45;
             font-family: inherit;
+            color: var(--text-primary);
         }
-        .input-area textarea:focus { border-color: #667eea; }
+        .input-area textarea::placeholder { color: var(--text-muted); }
+
         .send-btn {
-            width: 40px; height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border: none; color: white; font-size: 18px;
-            cursor: pointer; display: flex;
-            align-items: center; justify-content: center;
-            transition: opacity 0.2s;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+            background: var(--brand);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
         }
-        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .send-btn svg { width: 18px; height: 18px; }
+        .send-btn:hover:not(:disabled) { background: var(--brand-dark); }
+        .send-btn:active:not(:disabled) { transform: scale(0.95); }
+        .send-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
 
-        /* 打字指示器 */
-        .typing-indicator {
-            display: flex; gap: 4px; padding: 4px 0;
+        .input-hint {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            max-width: 720px;
+            margin-left: auto;
+            margin-right: auto;
         }
-        .typing-indicator span {
-            width: 6px; height: 6px; border-radius: 50%;
-            background: #9ca3af; animation: typing 1.4s infinite;
-        }
-        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 
-        /* 欢迎消息 */
-        .welcome {
-            text-align: center; padding: 40px 20px; color: #6b7280;
+        /* ── Scroll to bottom ── */
+        .scroll-btn {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%) translateY(60px);
+            opacity: 0;
+            pointer-events: none;
+            padding: 6px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            box-shadow: var(--shadow-md);
+            transition: all 0.2s ease;
+            z-index: 5;
         }
-        .welcome-icon { font-size: 48px; margin-bottom: 16px; }
-        .welcome h2 { font-size: 18px; color: #374151; margin-bottom: 8px; }
-        .welcome p { font-size: 14px; line-height: 1.6; }
+        .scroll-btn.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .scroll-btn:hover { background: var(--border-subtle); }
+
+        /* ── Hidden quick tags (replaced by suggest grid) ── */
+        .quick-tags { display: none; }
+
+        /* ── Desktop layout ── */
+        @media (min-width: 768px) {
+            .chat-container { padding: 24px 32px 12px; }
+            .input-section { padding: 16px 32px calc(16px + var(--safe-bottom)); }
+            .header { padding: 0 24px; }
+        }
+    /* P0-1: 流式打字光标动画 */
+    .message.streaming .bubble::after {
+        content: '';
+        display: inline-block;
+        width: 2px;
+        height: 1em;
+        background: var(--primary, #4F46E5);
+        margin-left: 2px;
+        vertical-align: text-bottom;
+        animation: cursorBlink 0.6s ease-in-out infinite;
+    }
+    @keyframes cursorBlink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+    }
+    .cursor-blink {
+        animation: cursorBlink 0.6s ease-in-out infinite;
+        color: var(--primary, #4F46E5);
+        font-weight: 100;
+    }
+
+    /* P0-4: 移动端键盘适配 - 使用 visualViewport 高度 */
+    :root {
+        --vv-height: 100vh;
+    }
+    @supports (height: 100dvh) {
+        :root { --vv-height: 100dvh; }
+    }
+    #app {
+        height: var(--vv-height);
+    }
+
+    /* P0-3: 停止按钮样式 */
+    #sendBtn[style*="rgb(220"] svg,
+    #sendBtn[style*="#dc2626"] svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    /* 移动端键盘弹出时避免输入框被遮挡 */
+    @media (max-width: 768px) {
+        .input-area {
+            /* iOS safe area */
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
+        }
+        /* 键盘弹出时 chatContainer 要跟随缩小 */
+        #chatContainer {
+            height: calc(var(--vv-height) - 64px - 60px);
+        }
+    }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <div class="header-icon">🏥</div>
-    <div class="header-info">
-        <h1>智能医疗问诊</h1>
-        <p>AI 初步分析 · 仅供参考 · 请遵医嘱</p>
+<header class="header">
+    <div class="header-left">
+        <div class="logo" aria-hidden="true">🩺</div>
+        <div class="header-info">
+            <h1>智能医疗问诊</h1>
+            <p><span class="status-dot"></span> AI 在线 · 仅供参考</p>
+        </div>
     </div>
-</div>
-
-<div class="chat-container" id="chatContainer">
-    <div class="welcome" id="welcome">
-        <div class="welcome-icon">🩺</div>
-        <h2>智能医疗问诊助手</h2>
-        <p>请描述您的症状，我会为您做初步分析。<br>严重不适请直接拨打 <strong>120</strong>。</p>
+    <div class="header-actions">
+        <button class="icon-btn" onclick="startNewSession()" title="新会话" aria-label="开始新会话">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <a class="icon-btn" href="/config.html" title="模型配置" aria-label="模型配置">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </a>
     </div>
+</header>
+
+<div class="chat-wrapper">
+    <div class="chat-container" id="chatContainer">
+        <div class="welcome" id="welcome">
+            <div class="welcome-badge">🏥 智能问诊助手</div>
+            <h2>您好，有什么可以帮您？</h2>
+            <p>请描述您的症状，我会结合医学知识为您提供初步分析。本服务不能替代专业医生诊断。</p>
+
+            <div class="emergency-banner">
+                <span>🚨</span>
+                <span>如出现<strong>胸痛、呼吸困难、意识不清</strong>等紧急情况，请立即拨打 <strong>120</strong> 或前往最近急诊。</span>
+            </div>
+
+            <div class="suggest-title">常见症状 · 点击快速开始</div>
+            <div class="suggest-grid" id="suggestGrid">
+                <button class="suggest-card" onclick="sendQuick('头疼，持续两天了，伴有轻微恶心')">
+                    <span class="icon">🤕</span>
+                    <span class="label">头疼</span>
+                    <span class="desc">持续两天 · 伴恶心</span>
+                </button>
+                <button class="suggest-card" onclick="sendQuick('咳嗽发烧，体温38.5度，全身乏力')">
+                    <span class="icon">🤒</span>
+                    <span class="label">发烧咳嗽</span>
+                    <span class="desc">38.5°C · 全身乏力</span>
+                </button>
+                <button class="suggest-card" onclick="sendQuick('胃不舒服，饭后反酸，偶尔胀痛')">
+                    <span class="icon">🤢</span>
+                    <span class="label">胃部不适</span>
+                    <span class="desc">反酸 · 饭后胀痛</span>
+                </button>
+                <button class="suggest-card" onclick="sendQuick('胸闷气短，活动后加重')">
+                    <span class="icon">😰</span>
+                    <span class="label">胸闷气短</span>
+                    <span class="desc">活动后加重</span>
+                </button>
+                <button class="suggest-card" onclick="sendQuick('失眠，最近一周都睡不好，入睡困难')">
+                    <span class="icon">😴</span>
+                    <span class="label">失眠</span>
+                    <span class="desc">入睡困难 · 持续一周</span>
+                </button>
+                <button class="suggest-card" onclick="sendQuick('皮肤起红疹，很痒，最近换了新的洗衣液')">
+                    <span class="icon">😵</span>
+                    <span class="label">皮肤过敏</span>
+                    <span class="desc">红疹瘙痒 · 接触新物品</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <button class="scroll-btn" id="scrollBtn" onclick="scrollToBottom(true)">↓ 回到最新</button>
 </div>
 
-<div class="quick-tags" id="quickTags">
-    <div class="quick-tag" onclick="sendQuick('头疼，持续两天了')">🤕 头疼</div>
-    <div class="quick-tag" onclick="sendQuick('咳嗽发烧，体温38.5度')">🤒 发烧</div>
-    <div class="quick-tag" onclick="sendQuick('胃不舒服，饭后反酸')">🤢 胃部不适</div>
-    <div class="quick-tag" onclick="sendQuick('胸闷气短')">😰 胸闷</div>
-    <div class="quick-tag" onclick="sendQuick('失眠，最近一周都睡不好')">😴 失眠</div>
-    <div class="quick-tag" onclick="sendQuick('皮肤起红疹，很痒')">😵 皮肤过敏</div>
-</div>
+<div class="quick-tags" id="quickTags"></div>
 
-<div class="input-area">
-    <textarea id="inputText" placeholder="描述您的症状..." rows="1"
-              oninput="autoResize(this)" onkeydown="handleKeydown(event)"></textarea>
-    <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+<div class="input-section">
+    <div class="input-area">
+        <textarea id="inputText" placeholder="描述您的症状，Enter 发送，Shift+Enter 换行..." rows="1"
+                  oninput="autoResize(this)" onkeydown="handleKeydown(event)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()" aria-label="发送">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+        </button>
+    </div>
+    <p class="input-hint">AI 生成内容仅供参考，不构成医疗诊断 · 请遵医嘱</p>
 </div>
 
 <script>
@@ -227,37 +728,169 @@ const ENDPOINT = API_BASE + '/api/v1/chat/stream';
 let sessionId = localStorage.getItem('med_session_id') || generateId();
 let abortController = null;
 let isStreaming = false;
+let streamingBubbleId = null; // 当前正在流式更新的 bubble ID
+let streamingContent = '';     // 当前流式累积的文本内容
 
-// 会话恢复
 function generateId() {
     return 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-function initSession() {
-    // 检查历史
-    const history = localStorage.getItem('med_history_' + sessionId);
-    if (history) {
-        try {
-            const data = JSON.parse(history);
-            data.messages.forEach(msg => appendMessage(msg.type, msg.content));
-            document.getElementById('welcome').style.display = 'none';
-        } catch (e) { /* ignore */ }
+function formatTime(date) {
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── P0-4: 移动端键盘适配 ──
+function setupViewportAdapter() {
+    if (!window.visualViewport) return;
+    const vv = window.visualViewport;
+    const onResize = () => {
+        // 当虚拟键盘弹出时，调整 body 高度
+        document.documentElement.style.setProperty('--vv-height', vv.height + 'px');
+        // 滚动到底部
+        if (isStreaming) scrollToBottom(true);
+    };
+    vv.addEventListener('resize', onResize);
+    vv.addEventListener('scroll', onResize);
+    // 初始化
+    onResize();
+}
+
+async function initSession() {
+    // D-02: 优先从后端恢复历史，fallback 到 localStorage
+    let restored = false;
+    try {
+        const resp = await fetch(API_BASE + '/api/v1/chat/session/' + sessionId + '/history');
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.messages && data.messages.length > 0 && !data.error) {
+                data.messages.forEach(msg => {
+                    appendMessage(msg.type, msg.content, false);
+                });
+                // D-04: 从后端恢复诊断卡片
+                if (data.diagnosisResult) {
+                    renderDiagnosisCard(data.diagnosisResult, false);
+                }
+                if (data.disclaimer) {
+                    appendDisclaimer(data.disclaimer, false);
+                }
+                document.getElementById('welcome').style.display = 'none';
+                restored = true;
+            }
+        }
+    } catch (e) { /* ignore network errors */ }
+
+    // Fallback: localStorage
+    if (!restored) {
+        const history = localStorage.getItem('med_history_' + sessionId);
+        if (history) {
+            try {
+                const data = JSON.parse(history);
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        if (msg.type === 'assistant' && msg.diagnosis) {
+                            appendMessage('assistant', msg.content, false);
+                            renderDiagnosisCard(msg.diagnosis, false);
+                        } else {
+                            appendMessage(msg.type, msg.content, false);
+                        }
+                    });
+                    if (data.disclaimer) {
+                        appendDisclaimer(data.disclaimer, false);
+                    }
+                    document.getElementById('welcome').style.display = 'none';
+                }
+            } catch (e) { /* ignore */ }
+        }
+    }
+    setupScrollObserver();
+    setupViewportAdapter();
+}
+
+function buildSuggestGrid() {
+    const items = [
+        { icon: '🤕', label: '头疼', desc: '持续两天 · 伴恶心', text: '头疼，持续两天了，伴有轻微恶心' },
+        { icon: '🤒', label: '发烧咳嗽', desc: '38.5°C · 全身乏力', text: '咳嗽发烧，体温38.5度，全身乏力' },
+        { icon: '🤢', label: '胃部不适', desc: '反酸 · 饭后胀痛', text: '胃不舒服，饭后反酸，偶尔胀痛' },
+        { icon: '😰', label: '胸闷气短', desc: '活动后加重', text: '胸闷气短，活动后加重' },
+        { icon: '😴', label: '失眠', desc: '入睡困难 · 持续一周', text: '失眠，最近一周都睡不好，入睡困难' },
+        { icon: '😵', label: '皮肤过敏', desc: '红疹瘙痒 · 接触新物品', text: '皮肤起红疹，很痒，最近换了新的洗衣液' },
+    ];
+    return items.map(i =>
+        `<button class="suggest-card" onclick="sendQuick('${i.text.replace(/'/g, "\\'")}')">
+            <span class="icon">${i.icon}</span><span class="label">${i.label}</span><span class="desc">${i.desc}</span>
+        </button>`
+    ).join('');
+}
+
+const WELCOME_HTML = `
+    <div class="welcome-badge">🏥 智能问诊助手</div>
+    <h2>您好，有什么可以帮您？</h2>
+    <p>请描述您的症状，我会结合医学知识为您提供初步分析。本服务不能替代专业医生诊断。</p>
+    <div class="emergency-banner"><span>🚨</span><span>如出现<strong>胸痛、呼吸困难、意识不清</strong>等紧急情况，请立即拨打 <strong>120</strong> 或前往最近急诊。</span></div>
+    <div class="suggest-title">常见症状 · 点击快速开始</div>
+    <div class="suggest-grid">${buildSuggestGrid()}</div>`;
+
+function startNewSession() {
+    if (isStreaming) stopStreaming();
+    // D-03: 通知后端结束旧 session
+    const oldSessionId = sessionId;
+    if (oldSessionId) {
+        fetch(API_BASE + '/api/v1/chat/session/' + oldSessionId + '/end', { method: 'POST' }).catch(() => {});
+    }
+
+    sessionId = generateId();
+    localStorage.setItem('med_session_id', sessionId);
+
+    const container = document.getElementById('chatContainer');
+    container.innerHTML = `<div class="welcome" id="welcome">${WELCOME_HTML}</div>`;
+    isStreaming = false;
+    updateSendButton();
+}
+
+// ── P0-3: 停止生成按钮 ──
+function stopStreaming() {
+    if (abortController) {
+        abortController.abort();
+        abortController = null;
+    }
+    isStreaming = false;
+    streamingBubbleId = null;
+    streamingContent = '';
+    updateSendButton();
+}
+
+function updateSendButton() {
+    const btn = document.getElementById('sendBtn');
+    if (isStreaming) {
+        // 切换为停止按钮
+        btn.disabled = false;
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`;
+        btn.onclick = stopStreaming;
+        btn.style.background = '#dc2626';
+        btn.title = '停止生成';
+        btn.setAttribute('aria-label', '停止生成');
+    } else {
+        // 切换回发送按钮
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+        btn.onclick = sendMessage;
+        btn.style.background = '';
+        btn.title = '发送';
+        btn.setAttribute('aria-label', '发送');
     }
 }
 
-// 发送消息
 async function sendMessage() {
     const input = document.getElementById('inputText');
     const text = input.value.trim();
-    if (!text || isStreaming) return;
+    if (!text) return;
+    if (isStreaming) return;
 
-    // 中断上一个流
     if (abortController) abortController.abort();
 
     input.value = '';
     autoResize(input);
     isStreaming = true;
-    document.getElementById('sendBtn').disabled = true;
+    updateSendButton(); // P0-3
 
     appendMessage('user', text);
     showTyping();
@@ -279,17 +912,15 @@ async function sendMessage() {
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        let currentBubble = null;
+        let currentAssistantBubble = null; // P0-1: 复用同一个 bubble 增量更新
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
             buffer += decoder.decode(value, { stream: true });
-
-            // 解析 SSE events
             const lines = buffer.split('\n\n');
-            buffer = lines.pop(); // 保留不完整的部分
+            buffer = lines.pop();
 
             for (const block of lines) {
                 if (!block.trim()) continue;
@@ -302,40 +933,118 @@ async function sendMessage() {
                 try {
                     const event = JSON.parse(data);
 
-                    if (event.type === 'disclaimer') {
-                        appendDisclaimer(event.text);
+                    // ── 流式 token 事件 (P0-1) ──
+                    if (event.type === 'token') {
+                        if (!currentAssistantBubble) {
+                            // 创建新的 assistant bubble，后续 token 增量更新
+                            currentAssistantBubble = createStreamingBubble();
+                        }
+                        // 增量追加文本
+                        streamingContent += event.content;
+                        const bubble = document.getElementById(streamingBubbleId);
+                        if (bubble) {
+                            bubble.innerHTML = formatContent(streamingContent);
+                            scrollToBottom();
+                        }
                         continue;
                     }
 
+                    // ── 诊断完成事件 ──
+                    if (event.type === 'diagnosis') {
+                        // 完成流式 bubble
+                        if (currentAssistantBubble) {
+                            finalizeStreamingBubble();
+                            currentAssistantBubble = null;
+                        }
+                        if (event.diagnosis) {
+                            renderDiagnosisCard(event.diagnosis);
+                        }
+                        continue;
+                    }
+
+                    // ── disclaimer 事件 ──
+                    if (event.type === 'disclaimer' || event.node === undefined && event.text) {
+                        appendDisclaimer(event.text || data);
+                        continue;
+                    }
+
+                    // ── error 事件 ──
                     if (event.type === 'error') {
                         appendMessage('assistant', event.message);
                         continue;
                     }
 
-                    // 普通消息
-                    if (event.content) {
+                    // ── 普通消息事件（非流式，如 collect_info 追问） ──
+                    if (event.content && event.type !== 'token') {
                         appendMessage('assistant', event.content);
-                        // 诊断卡片
-                        if (event.diagnosis) {
-                            renderDiagnosisCard(event.diagnosis);
-                        }
+                        if (event.diagnosis) renderDiagnosisCard(event.diagnosis);
                     }
 
-                    if (event.finished) {
-                        saveHistory();
-                    }
-                } catch (e) { /* 跳过解析失败的 event */ }
+                    if (event.finished) saveHistory();
+                } catch (e) { /* skip */ }
             }
         }
+
+        // 流式完成后保存
+        if (currentAssistantBubble) {
+            finalizeStreamingBubble();
+        }
+        saveHistory();
+
     } catch (e) {
         hideTyping();
         if (e.name !== 'AbortError') {
-            appendMessage('assistant', '⚠️ 网络连接异常，请稍后重试。');
+            appendMessage('assistant', '网络连接异常，请检查网络后重试。');
+        } else {
+            // 用户主动停止
+            if (streamingBubbleId) {
+                finalizeStreamingBubble();
+                saveHistory();
+            }
         }
     } finally {
         isStreaming = false;
-        document.getElementById('sendBtn').disabled = false;
+        streamingBubbleId = null;
+        streamingContent = '';
+        updateSendButton(); // P0-3
         abortController = null;
+    }
+}
+
+// ── P0-1: 流式打字效果 ──
+function createStreamingBubble() {
+    streamingContent = '';
+    streamingBubbleId = 'streaming_' + Date.now();
+
+    document.getElementById('welcome').style.display = 'none';
+    const container = document.getElementById('chatContainer');
+    const div = document.createElement('div');
+    div.className = 'message assistant streaming';
+    div.id = streamingBubbleId + '_wrapper';
+
+    const time = formatTime(new Date());
+    div.innerHTML = `
+        <div class="avatar">🩺</div>
+        <div class="message-body">
+            <div class="bubble" id="${streamingBubbleId}"><span class="cursor-blink">|</span></div>
+            <div class="msg-time">${time}</div>
+        </div>
+    `;
+    container.appendChild(div);
+    scrollToBottom(true);
+    return div;
+}
+
+function finalizeStreamingBubble() {
+    if (!streamingBubbleId) return;
+    const wrapper = document.getElementById(streamingBubbleId + '_wrapper');
+    if (wrapper) {
+        wrapper.classList.remove('streaming');
+    }
+    // 移除光标
+    const bubble = document.getElementById(streamingBubbleId);
+    if (bubble) {
+        bubble.innerHTML = formatContent(streamingContent);
     }
 }
 
@@ -344,65 +1053,84 @@ function sendQuick(text) {
     sendMessage();
 }
 
-// UI 辅助
-function appendMessage(type, content) {
+function appendMessage(type, content, save = true) {
     document.getElementById('welcome').style.display = 'none';
     const container = document.getElementById('chatContainer');
     const div = document.createElement('div');
     div.className = `message ${type}`;
 
-    const avatar = type === 'user' ? '👤' : '🤖';
-    // 简单 markdown 处理
+    const avatar = type === 'user' ? '👤' : '🩺';
     const html = formatContent(content);
+    const time = formatTime(new Date());
 
     div.innerHTML = `
         <div class="avatar">${avatar}</div>
-        <div class="bubble">${html}</div>
+        <div class="message-body">
+            <div class="bubble">${html}</div>
+            <div class="msg-time">${time}</div>
+        </div>
     `;
     container.appendChild(div);
     scrollToBottom();
-    saveHistory();
+    if (save) this.saveHistory?.() || saveHistory();
 }
 
-function renderDiagnosisCard(diagnosis) {
+function renderDiagnosisCard(diagnosis, save = true) {
     const container = document.getElementById('chatContainer');
     const card = document.createElement('div');
     card.className = 'diagnosis-card';
+    card.dataset.diagnosis = JSON.stringify(diagnosis); // P0-2: 存储诊断数据
 
     const conditions = (diagnosis.possible_conditions || []).map(c =>
-        `<span class="tag">${c}</span>`
+        `<span class="tag">${escapeHtml(c)}</span>`
     ).join('');
 
     card.innerHTML = `
-        <h3>📋 诊断分析</h3>
-        ${diagnosis.analysis ? `<div class="field"><div class="label">病情分析</div><div class="value">${diagnosis.analysis}</div></div>` : ''}
-        ${conditions ? `<div class="field"><div class="label">可能相关</div><div class="conditions">${conditions}</div></div>` : ''}
-        ${diagnosis.severity ? `<div class="field"><div class="label">紧急程度</div><span class="severity ${diagnosis.severity}">${severityLabel(diagnosis.severity)}</span></div>` : ''}
-        ${diagnosis.department ? `<div class="field"><div class="label">推荐科室</div><div class="value">🏥 ${diagnosis.department}</div></div>` : ''}
-        ${diagnosis.recommendation ? `<div class="field"><div class="label">建议</div><div class="value">💊 ${diagnosis.recommendation}</div></div>` : ''}
+        <div class="diagnosis-header">
+            <div class="icon">📋</div>
+            <div>
+                <h3>诊断分析报告</h3>
+                <span>基于您描述的症状生成</span>
+            </div>
+        </div>
+        <div class="diagnosis-body">
+            ${diagnosis.analysis ? `<div class="field"><div class="label">病情分析</div><div class="value">${escapeHtml(diagnosis.analysis)}</div></div>` : ''}
+            ${conditions ? `<div class="field"><div class="label">可能相关</div><div class="conditions">${conditions}</div></div>` : ''}
+            ${diagnosis.severity ? `<div class="field"><div class="label">紧急程度</div><span class="severity ${diagnosis.severity}">${severityLabel(diagnosis.severity)}</span></div>` : ''}
+            ${diagnosis.department ? `<div class="field"><div class="label">推荐科室</div><div class="value">🏥 ${escapeHtml(diagnosis.department)}</div></div>` : ''}
+            ${diagnosis.recommendation ? `<div class="field"><div class="label">就医建议</div><div class="value">${escapeHtml(diagnosis.recommendation)}</div></div>` : ''}
+        </div>
     `;
 
     container.appendChild(card);
     scrollToBottom();
+    if (save) saveHistory();
 }
 
-function appendDisclaimer(text) {
+function appendDisclaimer(text, save = true) {
     const container = document.getElementById('chatContainer');
     const div = document.createElement('div');
     div.className = 'disclaimer';
     div.textContent = text;
     container.appendChild(div);
     scrollToBottom();
+    if (save) saveHistory();
+}
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
 }
 
 function formatContent(text) {
-    return text
+    return escapeHtml(text)
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\n/g, '<br>');
 }
 
 function severityLabel(s) {
-    const m = { low: '轻微', medium: '中等', high: '较重', critical: '紧急' };
+    const m = { low: '● 轻微', medium: '● 中等', high: '● 较重', critical: '● 紧急' };
     return m[s] || s;
 }
 
@@ -411,7 +1139,11 @@ function showTyping() {
     const div = document.createElement('div');
     div.className = 'message assistant';
     div.id = 'typing';
-    div.innerHTML = `<div class="avatar">🤖</div><div class="bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+    div.innerHTML = `
+        <div class="avatar">🩺</div>
+        <div class="message-body">
+            <div class="bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>
+        </div>`;
     container.appendChild(div);
     scrollToBottom();
 }
@@ -421,36 +1153,105 @@ function hideTyping() {
     if (el) el.remove();
 }
 
-function scrollToBottom() {
+function scrollToBottom(force) {
     const c = document.getElementById('chatContainer');
-    setTimeout(() => c.scrollTop = c.scrollHeight, 50);
+    const btn = document.getElementById('scrollBtn');
+    if (force || !btn.classList.contains('visible')) {
+        setTimeout(() => { c.scrollTop = c.scrollHeight; }, 50);
+    }
+}
+
+function setupScrollObserver() {
+    const c = document.getElementById('chatContainer');
+    const btn = document.getElementById('scrollBtn');
+    c.addEventListener('scroll', () => {
+        const atBottom = c.scrollHeight - c.scrollTop - c.clientHeight < 80;
+        btn.classList.toggle('visible', !atBottom && c.querySelectorAll('.message').length > 0);
+    });
 }
 
 function autoResize(el) {
     el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
 function handleKeydown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
+        if (isStreaming) return; // 流式期间 Enter 不触发
         sendMessage();
     }
 }
 
+// ── P0-2: 诊断卡片持久化 ──
 function saveHistory() {
     const msgs = [];
+    let lastDiagnosis = null;
+    let disclaimerText = null;
+
     document.querySelectorAll('.message').forEach(el => {
         const type = el.classList.contains('user') ? 'user' : 'assistant';
         const bubble = el.querySelector('.bubble');
-        if (bubble) msgs.push({ type, content: bubble.textContent });
+        if (!bubble) return;
+
+        const msgData = { type, content: bubble.textContent };
+
+        // 检查下一条是否是 diagnosis-card
+        const nextEl = el.nextElementSibling;
+        if (nextEl && nextEl.classList.contains('diagnosis-card')) {
+            try {
+                msgData.diagnosis = JSON.parse(nextEl.dataset.diagnosis);
+            } catch (e) {}
+        }
+
+        msgs.push(msgData);
     });
+
+    // 保存 disclaimer
+    const disclaimerEl = document.querySelector('.disclaimer');
+    if (disclaimerEl) {
+        disclaimerText = disclaimerEl.textContent;
+    }
+
     localStorage.setItem('med_session_id', sessionId);
-    localStorage.setItem('med_history_' + sessionId, JSON.stringify({ messages: msgs }));
+    localStorage.setItem('med_history_' + sessionId, JSON.stringify({
+        messages: msgs,
+        disclaimer: disclaimerText
+    }));
 }
 
-// 初始化
+async function checkHealth() {
+    try {
+        const resp = await fetch(API_BASE + '/api/v1/health', { signal: AbortSignal.timeout(5000) });
+        if (resp.ok) {
+            const data = await resp.json();
+            updateHealthStatus(data.status === 'UP');
+        } else {
+            updateHealthStatus(false);
+        }
+    } catch (e) {
+        updateHealthStatus(false);
+    }
+}
+
+function updateHealthStatus(online) {
+    const dot = document.querySelector('.status-dot');
+    const text = document.querySelector('.header-info p');
+    if (dot) {
+        dot.style.background = online ? '#22c55e' : '#ef4444';
+        dot.style.animation = online ? 'statusPulse 2s ease-in-out infinite' : 'none';
+    }
+    if (text) {
+        text.innerHTML = online
+            ? '<span class="status-dot"></span> AI 在线 · 仅供参考'
+            : '<span class="status-dot" style="background:#ef4444;animation:none"></span> 服务离线';
+    }
+}
+
 initSession();
+checkHealth();
+// 每 30 秒检查一次
+setInterval(checkHealth, 30000);
 </script>
 </body>
 </html>

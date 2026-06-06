@@ -20,16 +20,16 @@ public class HybridSearchRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    @Value("${rag.top-k:3}")
+    @Value("${retrieval.top-k:3}")
     private int topK;
 
-    @Value("${rag.vector-weight:0.7}")
+    @Value("${retrieval.vector-weight:0.7}")
     private double vectorWeight;
 
-    @Value("${rag.text-weight:0.3}")
+    @Value("${retrieval.text-weight:0.3}")
     private double textWeight;
 
-    @Value("${rag.confidence-threshold:0.4}")
+    @Value("${retrieval.confidence-threshold:0.4}")
     private double confidenceThreshold;
 
     public HybridSearchRepository(JdbcTemplate jdbcTemplate) {
@@ -43,37 +43,37 @@ public class HybridSearchRepository {
      * @return 检索结果列表
      */
     public List<Map<String, Object>> search(String queryText, float[] queryEmbedding) {
-        String sql = "SELECT doc_id, content, source_file, category, " +
+        // 对齐 init_db.sql hybrid_search() 函数签名：5 参数，无 WHERE/LIMIT（函数内部已处理）
+        String sql = "SELECT id, content, source_file, chunk_index, " +
                 "vector_score, text_score, final_score " +
-                "FROM hybrid_search(?, ?, ?, ?, ?) " +
-                "WHERE final_score >= ? " +
-                "ORDER BY final_score DESC LIMIT ?";
+                "FROM hybrid_search(?, ?, ?, ?, ?)";
 
-        // PostgreSQL 向量参数：[0.1, 0.2, ...]
         String vectorParam = arrayToPgVector(queryEmbedding);
 
         try {
-            return jdbcTemplate.query(sql,
+            List<Map<String, Object>> results = jdbcTemplate.query(sql,
                     ps -> {
                         ps.setString(1, queryText);
                         ps.setString(2, vectorParam);
                         ps.setInt(3, topK);
                         ps.setDouble(4, vectorWeight);
                         ps.setDouble(5, textWeight);
-                        ps.setDouble(6, confidenceThreshold);
-                        ps.setInt(7, topK);
                     },
                     (rs, rowNum) -> {
                         Map<String, Object> doc = new LinkedHashMap<>();
-                        doc.put("doc_id", rs.getString("doc_id"));
+                        doc.put("doc_id", rs.getString("id"));
                         doc.put("content", rs.getString("content"));
                         doc.put("source_file", rs.getString("source_file"));
-                        doc.put("category", rs.getString("category"));
+                        doc.put("chunk_index", rs.getInt("chunk_index"));
                         doc.put("vector_score", rs.getDouble("vector_score"));
                         doc.put("text_score", rs.getDouble("text_score"));
                         doc.put("final_score", rs.getDouble("final_score"));
                         return doc;
                     });
+
+            // 客户端过滤置信度阈值
+            results.removeIf(doc -> ((Double) doc.get("final_score")) < confidenceThreshold);
+            return results;
         } catch (Exception e) {
             log.error("Hybrid search failed", e);
             return Collections.emptyList();
@@ -84,7 +84,8 @@ public class HybridSearchRepository {
      * 纯文本检索（无向量时 fallback）
      */
     public List<Map<String, Object>> searchTextOnly(String queryText) {
-        String sql = "SELECT doc_id, content, source_file, category, " +
+        // 对齐 init_db.sql knowledge_base 表：id 列，无 category 列（在 metadata JSONB 中）
+        String sql = "SELECT id, content, source_file, " +
                 "ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', ?)) as final_score " +
                 "FROM knowledge_base " +
                 "WHERE to_tsvector('simple', content) @@ plainto_tsquery('simple', ?) " +
@@ -99,10 +100,9 @@ public class HybridSearchRepository {
                     },
                     (rs, rowNum) -> {
                         Map<String, Object> doc = new LinkedHashMap<>();
-                        doc.put("doc_id", rs.getString("doc_id"));
+                        doc.put("doc_id", rs.getString("id"));
                         doc.put("content", rs.getString("content"));
                         doc.put("source_file", rs.getString("source_file"));
-                        doc.put("category", rs.getString("category"));
                         doc.put("vector_score", 0.0);
                         doc.put("text_score", rs.getDouble("final_score"));
                         doc.put("final_score", rs.getDouble("final_score"));

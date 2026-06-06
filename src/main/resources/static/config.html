@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>智能医疗问诊 · 模型配置</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --border-subtle: #f1f5f9;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --brand: #0d9488;
+    --brand-dark: #0f766e;
+    --brand-light: #ccfbf1;
+    --brand-glow: rgba(13, 148, 136, 0.15);
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ── */
+.header {
+    height: 60px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.logo {
+    width: 38px; height: 38px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 2px 8px var(--brand-glow);
+}
+.header-info h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.header-info p { font-size: 12px; color: var(--text-secondary); }
+.icon-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s ease;
+    font-size: 16px;
+}
+.icon-btn:hover { background: var(--border-subtle); color: var(--text-primary); }
+
+/* ── Card ── */
+.card {
+    max-width: 520px;
+    margin: 32px auto;
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    padding: 28px 24px;
+}
+.card-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ── Form ── */
+.field { margin-bottom: 18px; }
+.field-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+input, select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border .2s, box-shadow .2s;
+    background: var(--surface);
+    color: var(--text-primary);
+}
+input:focus, select:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-glow);
+}
+.hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.row { display: flex; gap: 12px; }
+.row > * { flex: 1; }
+
+/* ── Provider tags ── */
+.provider-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.tag {
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all .15s;
+    background: var(--surface);
+    color: var(--text-secondary);
+}
+.tag:hover { border-color: var(--brand); color: var(--brand); }
+.tag.active {
+    border-color: var(--brand);
+    background: var(--brand-light);
+    color: var(--brand-dark);
+}
+
+/* ── Buttons ── */
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .15s;
+}
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: var(--brand); color: #fff; flex: 1; }
+.btn-primary:hover { background: var(--brand-dark); }
+.btn-test { background: var(--brand-light); color: var(--brand-dark); }
+.btn-group { display: flex; gap: 12px; margin-top: 24px; }
+
+/* ── Status ── */
+.status {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    display: none;
+}
+.status.ok { display: block; background: #d1fae5; color: #065f46; }
+.status.err { display: block; background: var(--danger-bg); color: var(--danger); }
+
+@media (max-width: 560px) {
+    .card { margin: 16px 12px; padding: 20px 16px; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo" aria-hidden="true">🩺</div>
+        <div class="header-info">
+            <h1>智能医疗问诊</h1>
+            <p>模型配置</p>
+        </div>
+    </div>
+    <a class="icon-btn" href="/" title="返回聊天" aria-label="返回聊天">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </a>
+</header>
+
+<div class="card">
+    <div class="card-title">🏥 模型配置</div>
+
+    <div class="field">
+        <span class="field-label">提供商</span>
+        <div class="provider-tags">
+            <span class="tag active" data-provider="openai" onclick="selectProvider(this)">OpenAI</span>
+            <span class="tag" data-provider="evol" onclick="selectProvider(this)">Evol 本地代理</span>
+            <span class="tag" data-provider="deepseek" onclick="selectProvider(this)">DeepSeek</span>
+            <span class="tag" data-provider="custom" onclick="selectProvider(this)">自定义</span>
+        </div>
+    </div>
+
+    <div class="field">
+        <label class="field-label">Base URL</label>
+        <input id="baseUrl" placeholder="https://api.openai.com/v1" />
+        <div class="hint">OpenAI 兼容接口地址</div>
+    </div>
+
+    <div class="field">
+        <label class="field-label">API Key</label>
+        <input id="apiKey" type="password" placeholder="sk-... 或 Bearer token" />
+        <div class="hint">密钥将以文件形式保存在服务器，不会提交到代码仓库</div>
+    </div>
+
+    <div class="row">
+        <div class="field" style="flex:2">
+            <label class="field-label">默认模型</label>
+            <input id="defaultModel" placeholder="gpt-4o-mini" />
+        </div>
+        <div class="field" style="flex:1">
+            <label class="field-label">温度</label>
+            <input id="temperature" type="number" step="0.1" min="0" max="2" placeholder="0.2" />
+        </div>
+        <div class="field" style="flex:1">
+            <label class="field-label">最大 Token</label>
+            <input id="maxTokens" type="number" step="1" min="1" placeholder="2048" />
+        </div>
+    </div>
+
+    <div class="btn-group">
+        <button class="btn btn-test" onclick="testConnection()">测试连通性</button>
+        <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+    </div>
+
+    <div id="status" class="status"></div>
+</div>
+
+<script>
+const PROVIDERS = {
+  openai:     { baseUrl: 'https://api.openai.com/v1',   model: 'gpt-4o-mini' },
+  evol:       { baseUrl: 'http://127.0.0.1:12654/openclaw-proxy/v1', model: 'deepseek-v4' },
+  deepseek:   { baseUrl: 'https://api.deepseek.com/v1',  model: 'deepseek-chat' },
+  custom:     { baseUrl: '',                                model: '' },
+};
+
+let currentProvider = 'openai';
+
+function selectProvider(el) {
+  document.querySelectorAll('.tag').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentProvider = el.dataset.provider;
+  const p = PROVIDERS[currentProvider];
+  if (p && p.baseUrl) {
+    document.getElementById('baseUrl').value = p.baseUrl;
+    document.getElementById('defaultModel').value = p.model;
+  }
+}
+
+async function loadConfig() {
+  try {
+    const r = await fetch('/api/v1/config/llm');
+    const d = await r.json();
+    document.getElementById('baseUrl').value     = d.baseUrl || '';
+    document.getElementById('defaultModel').value = d.defaultModel || '';
+    document.getElementById('temperature').value  = d.temperature ?? 0.2;
+    document.getElementById('maxTokens').value    = d.maxTokens ?? 2048;
+  } catch (e) {
+    showStatus('加载配置失败: ' + e.message, false);
+  }
+}
+
+async function testConnection() {
+  const config = await (await fetch('/api/v1/config/llm')).json();
+  if (!config.apiKeyConfigured) {
+    showStatus('请先填写并保存 API Key', false);
+    return;
+  }
+  showStatus('正在测试...', null);
+  try {
+    const r = await fetch('/api/v1/config/llm/test');
+    const d = await r.json();
+    showStatus(d.message, d.success);
+  } catch (e) {
+    showStatus('请求失败: ' + e.message, false);
+  }
+}
+
+async function saveConfig() {
+  const baseUrl     = document.getElementById('baseUrl').value.trim();
+  const apiKey      = document.getElementById('apiKey').value;
+  const defaultModel = document.getElementById('defaultModel').value.trim();
+  const temperature  = parseFloat(document.getElementById('temperature').value);
+  const maxTokens   = parseInt(document.getElementById('maxTokens').value);
+
+  if (!baseUrl) return showStatus('请填写 Base URL', false);
+  if (apiKey && /[一-鿿]/.test(apiKey)) {
+    return showStatus('API Key 格式不正确（不能包含中文）', false);
+  }
+
+  const body = {
+    baseUrl:     baseUrl,
+    defaultModel: defaultModel,
+    temperature:  temperature,
+    maxTokens:   maxTokens,
+  };
+
+  // D-07: 仅当 apiKey 非空时才发送，避免覆盖已有密钥
+  if (apiKey && apiKey.trim()) {
+    body.apiKey = apiKey.trim();
+  }
+
+  showStatus('正在保存...', null);
+  try {
+    const r = await fetch('/api/v1/config/llm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.success) {
+      document.getElementById('apiKey').value = '';
+      showStatus('保存成功！模型缓存已清空，下次对话将使用新配置。', true);
+    } else {
+      showStatus('保存失败', false);
+    }
+  } catch (e) {
+    showStatus('请求失败: ' + e.message, false);
+  }
+}
+
+function showStatus(msg, ok) {
+  const el = document.getElementById('status');
+  el.className = 'status' + (ok === null ? '' : (ok ? ' ok' : ' err'));
+  el.textContent = msg;
+}
+
+loadConfig();
+</script>
+</body>
+</html>
