@@ -27,8 +27,9 @@ public class CollectInfoAgent {
             new QuestionPhase("severity", "疼痛或不适的程度如何？（1-10 分）")
     );
 
-    /** 年龄提取 */
-    private static final Pattern AGE_PATTERN = Pattern.compile("(\\d{1,3})\\s*[岁岁]?");
+    /** 年龄提取 — 必须有"岁"后缀或上下文提示 */
+    private static final Pattern AGE_PATTERN = Pattern.compile("(\\d{1,3})\\s*岁");
+    private static final Pattern AGE_CONTEXT_PATTERN = Pattern.compile("年龄[^\\d]*(\\d{1,3})");
 
     /** 性别提取 */
     private static final Pattern MALE_PATTERN = Pattern.compile("男|男性|male");
@@ -80,6 +81,11 @@ public class CollectInfoAgent {
             Matcher ageMatcher = AGE_PATTERN.matcher(message);
             if (ageMatcher.find()) {
                 history.put("age", ageMatcher.group(1));
+            } else {
+                Matcher ageCtxMatcher = AGE_CONTEXT_PATTERN.matcher(message);
+                if (ageCtxMatcher.find()) {
+                    history.put("age", ageCtxMatcher.group(1));
+                }
             }
         }
 

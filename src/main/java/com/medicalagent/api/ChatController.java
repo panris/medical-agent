@@ -30,22 +30,34 @@ public class ChatController {
 
     private static final Logger log = LoggerFactory.getLogger(ChatController.class);
     private static final ObjectMapper mapper = new ObjectMapper();
-    private static final ExecutorService sseExecutor = Executors.newCachedThreadPool();
+    private static final ExecutorService sseExecutor = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r, "sse-executor");
+        t.setDaemon(true);
+        return t;
+    });
 
-    @Autowired
-    private GraphOrchestrator graphOrchestrator;
+    @jakarta.annotation.PreDestroy
+    public void shutdown() {
+        sseExecutor.shutdown();
+    }
 
-    @Autowired
-    private DiagnosisAgent diagnosisAgent;
+    private final GraphOrchestrator graphOrchestrator;
+    private final DiagnosisAgent diagnosisAgent;
+    private final SensitiveDataFilter sensitiveDataFilter;
+    private final ComplianceService complianceService;
+    private final SessionRepository sessionRepository;
 
-    @Autowired
-    private SensitiveDataFilter sensitiveDataFilter;
-
-    @Autowired
-    private ComplianceService complianceService;
-
-    @Autowired
-    private SessionRepository sessionRepository;
+    public ChatController(GraphOrchestrator graphOrchestrator,
+                          DiagnosisAgent diagnosisAgent,
+                          SensitiveDataFilter sensitiveDataFilter,
+                          ComplianceService complianceService,
+                          SessionRepository sessionRepository) {
+        this.graphOrchestrator = graphOrchestrator;
+        this.diagnosisAgent = diagnosisAgent;
+        this.sensitiveDataFilter = sensitiveDataFilter;
+        this.complianceService = complianceService;
+        this.sessionRepository = sessionRepository;
+    }
 
     @Value("${session.ttl-minutes:30}")
     private long sessionTtlMinutes;

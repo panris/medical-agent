@@ -41,6 +41,9 @@ public class AgentState {
     /** 当前追问轮次 */
     private int turnCount = 0;
 
+    /** 路由意图（由 RouterAgent 设置） */
+    private String routeIntent;
+
     /** 嵌套消息类 */
     public static class Message {
         private String type;
@@ -88,4 +91,7 @@ public class AgentState {
 
     public int getTurnCount() { return turnCount; }
     public void setTurnCount(int turnCount) { this.turnCount = turnCount; }
+
+    public String getRouteIntent() { return routeIntent; }
+    public void setRouteIntent(String routeIntent) { this.routeIntent = routeIntent; }
 }

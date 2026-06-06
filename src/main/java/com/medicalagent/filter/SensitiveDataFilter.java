@@ -53,11 +53,11 @@ public class SensitiveDataFilter {
             return phone.substring(0, 3) + "****" + phone.substring(7);
         });
 
-        // 银行卡 → ****5678（排除身份证脱敏后的 ***...格式）
+        // 银行卡 → ****5678（跳过已被身份证脱敏的 110***********XXXX 格式）
         result = BANK_CARD_PATTERN.matcher(result).replaceAll(m -> {
             String card = m.group();
-            // 跳过含 * 的（已被身份证脱敏）
-            if (card.contains("*")) return card;
+            // 被身份证脱敏后格式为 XXX***********XXXX，含连续 *，跳过
+            if (card.contains("***")) return card;
             return "****" + card.substring(card.length() - 4);
         });
 

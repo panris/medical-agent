@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 诊断建议 Agent (T2.5)
@@ -101,14 +100,7 @@ public class DiagnosisAgent {
             result = mockDiagnose();
         }
 
-        result.put("disclaimer", true);
-        result.put("disclaimer_text", DISCLAIMER);
-
-        state.setDiagnosisResult(result);
-        state.setCurrentAgent("diagnose");
-        state.setNeedsMoreInfo(false);
-
-        return result;
+        return finalizeResult(result, state);
     }
 
     /**
@@ -132,13 +124,7 @@ public class DiagnosisAgent {
         // 如果流式模型不可用，降级到同步
         if (streamingModel == null) {
             if (syncModel == null) {
-                Map<String, Object> fallback = mockDiagnose();
-                fallback.put("disclaimer", true);
-                fallback.put("disclaimer_text", DISCLAIMER);
-                state.setDiagnosisResult(fallback);
-                state.setCurrentAgent("diagnose");
-                state.setNeedsMoreInfo(false);
-                return CompletableFuture.completedFuture(fallback);
+                return CompletableFuture.completedFuture(finalizeResult(mockDiagnose(), state));
             }
             // 同步模式：一次性拿到结果
             try {
@@ -160,45 +146,36 @@ public class DiagnosisAgent {
                 displayText.append("🏥 **推荐科室**：").append(result.getOrDefault("department", "请咨询导诊")).append("\n\n");
                 displayText.append("💊 **建议**：").append(result.getOrDefault("recommendation", "")).append("\n\n");
                 onToken.accept(displayText.toString());
-                return CompletableFuture.completedFuture(result);
+                return CompletableFuture.completedFuture(finalizeResult(result, state));
             } catch (Exception e) {
                 log.error("Sync LLM call failed", e);
-                Map<String, Object> fallback = mockDiagnose();
-                fallback.put("disclaimer", true);
-                fallback.put("disclaimer_text", DISCLAIMER);
-                state.setDiagnosisResult(fallback);
-                state.setCurrentAgent("diagnose");
-                state.setNeedsMoreInfo(false);
-                return CompletableFuture.completedFuture(fallback);
+                return CompletableFuture.completedFuture(finalizeResult(mockDiagnose(), state));
             }
         }
 
         // 流式模式
         CompletableFuture<Map<String, Object>> future = new CompletableFuture<>();
         StringBuilder fullResponse = new StringBuilder();
-        AtomicReference<Boolean> jsonStarted = new AtomicReference<>(false);
-        StringBuilder jsonBuffer = new StringBuilder();
 
         streamingModel.generate(
                 List.of(SystemMessage.from(STREAMING_SYSTEM_PROMPT), UserMessage.from(userContent)),
                 new StreamingResponseHandler<AiMessage>() {
+                    private boolean jsonStarted = false;
+                    private final StringBuilder jsonBuffer = new StringBuilder();
+
                     @Override
                     public void onNext(String partialToken) {
-                        fullResponse.append(partialToken);
-
-                        String current = fullResponse.toString();
-                        int jsonIdx = current.indexOf(JSON_MARKER);
-                        if (jsonIdx >= 0) {
-                            if (!jsonStarted.get()) {
-                                jsonStarted.set(true);
-                                jsonBuffer.append(current.substring(jsonIdx + JSON_MARKER.length()));
-                            } else {
-                                jsonBuffer.append(partialToken);
-                            }
-                        } else if (!jsonStarted.get()) {
-                            onToken.accept(partialToken);
-                        } else {
+                        if (jsonStarted) {
                             jsonBuffer.append(partialToken);
+                            return;
+                        }
+                        fullResponse.append(partialToken);
+                        int jsonIdx = fullResponse.indexOf(JSON_MARKER);
+                        if (jsonIdx >= 0) {
+                            jsonStarted = true;
+                            jsonBuffer.append(fullResponse.substring(jsonIdx + JSON_MARKER.length()));
+                        } else {
+                            onToken.accept(partialToken);
                         }
                     }
 
@@ -206,34 +183,17 @@ public class DiagnosisAgent {
                     public void onComplete(Response<AiMessage> response) {
                         try {
                             Map<String, Object> result = parseStreamingResult(fullResponse.toString());
-                            result.put("disclaimer", true);
-                            result.put("disclaimer_text", DISCLAIMER);
-                            state.setDiagnosisResult(result);
-                            state.setCurrentAgent("diagnose");
-                            state.setNeedsMoreInfo(false);
-                            future.complete(result);
+                            future.complete(finalizeResult(result, state));
                         } catch (Exception e) {
                             log.warn("Failed to parse streaming result, using fallback", e);
-                            Map<String, Object> fallback = mockDiagnose();
-                            fallback.put("disclaimer", true);
-                            fallback.put("disclaimer_text", DISCLAIMER);
-                            state.setDiagnosisResult(fallback);
-                            state.setCurrentAgent("diagnose");
-                            state.setNeedsMoreInfo(false);
-                            future.complete(fallback);
+                            future.complete(finalizeResult(mockDiagnose(), state));
                         }
                     }
 
                     @Override
                     public void onError(Throwable error) {
                         log.error("Streaming LLM error", error);
-                        Map<String, Object> fallback = mockDiagnose();
-                        fallback.put("disclaimer", true);
-                        fallback.put("disclaimer_text", DISCLAIMER);
-                        state.setDiagnosisResult(fallback);
-                        state.setCurrentAgent("diagnose");
-                        state.setNeedsMoreInfo(false);
-                        future.complete(fallback);
+                        future.complete(finalizeResult(mockDiagnose(), state));
                     }
                 }
         );
@@ -314,6 +274,16 @@ public class DiagnosisAgent {
             fallback.put("department", "内科");
             return fallback;
         }
+    }
+
+    /** 将诊断结果写入 state 并返回 */
+    private Map<String, Object> finalizeResult(Map<String, Object> result, AgentState state) {
+        result.put("disclaimer", true);
+        result.put("disclaimer_text", DISCLAIMER);
+        state.setDiagnosisResult(result);
+        state.setCurrentAgent("diagnose");
+        state.setNeedsMoreInfo(false);
+        return result;
     }
 
     private Map<String, Object> mockDiagnose() {

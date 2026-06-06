@@ -27,12 +27,19 @@ public class ModelFactory {
         this.configService = configService;
     }
 
+    private String buildCacheKey(String modelName, Map<String, Object> config, double temperature, int maxTokens) {
+        String baseUrl = (String) config.getOrDefault("baseUrl", "");
+        String apiKeyHash = configService.getDecryptedApiKey() != null
+                ? Integer.toString(configService.getDecryptedApiKey().hashCode()) : "null";
+        return modelName + "-" + baseUrl.hashCode() + "-" + apiKeyHash + "-t" + temperature + "-mt" + maxTokens;
+    }
+
     public ChatLanguageModel getDefaultModel() {
         Map<String, Object> config = configService.loadConfig();
         String modelName = (String) config.getOrDefault("defaultModel", "gpt-4o-mini");
         double temperature = Double.parseDouble(config.getOrDefault("temperature", "0.2").toString());
         int maxTokens = Integer.parseInt(config.getOrDefault("maxTokens", "2048").toString());
-        String cacheKey = modelName + "-t" + temperature + "-mt" + maxTokens;
+        String cacheKey = buildCacheKey(modelName, config, temperature, maxTokens);
         return modelCache.computeIfAbsent(cacheKey, k -> createModel(modelName, config, temperature, maxTokens));
     }
 
@@ -40,7 +47,7 @@ public class ModelFactory {
         Map<String, Object> config = configService.loadConfig();
         double temperature = Double.parseDouble(config.getOrDefault("temperature", "0.2").toString());
         int maxTokens = Integer.parseInt(config.getOrDefault("maxTokens", "2048").toString());
-        String cacheKey = modelName + "-t" + temperature + "-mt" + maxTokens;
+        String cacheKey = buildCacheKey(modelName, config, temperature, maxTokens);
         return modelCache.computeIfAbsent(cacheKey, k -> createModel(modelName, config, temperature, maxTokens));
     }
 
@@ -49,7 +56,7 @@ public class ModelFactory {
         String modelName = (String) config.getOrDefault("defaultModel", "gpt-4o-mini");
         double temperature = Double.parseDouble(config.getOrDefault("temperature", "0.2").toString());
         int maxTokens = Integer.parseInt(config.getOrDefault("maxTokens", "2048").toString());
-        String cacheKey = modelName + "-t" + temperature + "-mt" + maxTokens;
+        String cacheKey = buildCacheKey(modelName, config, temperature, maxTokens);
         return streamingModelCache.computeIfAbsent(cacheKey, k -> createStreamingModel(modelName, config, temperature, maxTokens));
     }
 

@@ -189,12 +189,7 @@ public class RouterAgent {
      * 路由后的处理函数，用于更新状态中的路由结果
      */
     public void postRoute(AgentState state, String nextNode) {
-        Map<String, Object> diagnosisResult = state.getDiagnosisResult();
-        if (diagnosisResult == null) {
-            state.setDiagnosisResult(new java.util.HashMap<>(Map.of("intent", nextNode)));
-        } else {
-            diagnosisResult.put("intent", nextNode);
-        }
+        state.setRouteIntent(nextNode);
         state.setCurrentAgent(nextNode);
     }
 
