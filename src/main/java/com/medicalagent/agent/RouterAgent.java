@@ -32,9 +32,10 @@ public class RouterAgent {
             - collect_info: 用户在描述症状、回答追问、或刚开始对话，需要继续收集患者信息
             - retrieval: 用户已提供了足够的信息（至少有主诉/症状），可以进行知识检索和诊断
             - emergency: 用户描述了紧急症状（如昏迷、休克、大出血、胸痛、呼吸困难、窒息等），需要立即给出紧急指引
+            - chat: 用户的输入与医疗问诊无关（如闲聊、问候、非医疗问题），需要友好回应并引导回问诊
             - end: 用户明确表示结束对话（如感谢、再见等）
 
-            判断优先级：emergency > end > retrieval > collect_info
+            判断优先级：emergency > end > chat > retrieval > collect_info
 
             你必须返回严格的 JSON 格式，不要包含任何其他文字：
             {"intent": "collect_info|retrieval|emergency|end", "reason": "判断理由"}
@@ -54,7 +55,7 @@ public class RouterAgent {
             Pattern.CASE_INSENSITIVE
     );
 
-    private static final List<String> VALID_INTENTS = List.of("collect_info", "retrieval", "emergency", "end");
+    private static final List<String> VALID_INTENTS = List.of("collect_info", "retrieval", "emergency", "chat", "end");
 
     private final ModelFactory modelFactory;
     private final ObjectMapper objectMapper;

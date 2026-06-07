@@ -24,14 +24,18 @@ public class GraphOrchestrator {
     private final RetrievalAgent retrievalAgent;
     private final DiagnosisAgent diagnosisAgent;
 
+    private final CasualAgent casualAgent;
+
     public GraphOrchestrator(RouterAgent routerAgent,
                              CollectInfoAgent collectInfoAgent,
                              RetrievalAgent retrievalAgent,
-                             DiagnosisAgent diagnosisAgent) {
+                             DiagnosisAgent diagnosisAgent,
+                             CasualAgent casualAgent) {
         this.routerAgent = routerAgent;
         this.collectInfoAgent = collectInfoAgent;
         this.retrievalAgent = retrievalAgent;
         this.diagnosisAgent = diagnosisAgent;
+        this.casualAgent = casualAgent;
     }
 
     /**
@@ -50,6 +54,7 @@ public class GraphOrchestrator {
             case "retrieval" -> executeRetrieval(state);
             case "emergency" -> executeEmergency(state);
             case "diagnose" -> executeDiagnose(state);
+            case "chat" -> executeChat(state);
             case "end" -> new StepResult("end", null, true);
             default -> {
                 log.warn("Unknown node: {}, defaulting to router", currentNode);
@@ -138,6 +143,14 @@ public class GraphOrchestrator {
         state.setNeedsMoreInfo(false);
 
         return new StepResult("emergency", message, true);
+    }
+
+    /**
+     * chat 节点 — 兜底闲聊，引导回问诊
+     */
+    private StepResult executeChat(AgentState state) {
+        String reply = casualAgent.chat(state);
+        return new StepResult("chat", reply, false, true);
     }
 
     /**
