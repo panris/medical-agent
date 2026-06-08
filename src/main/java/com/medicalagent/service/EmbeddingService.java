@@ -22,7 +22,7 @@ public class EmbeddingService {
     private String apiUrl;
 
     @Value("${embedding.api-key:}")
-    private String apiKey;
+    private String apiKey; // WARNING: never log this field directly
 
     @Value("${embedding.model:text-embedding-3-small}")
     private String model;

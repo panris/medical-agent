@@ -181,6 +181,31 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* ── Skeleton Loading ── */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton-bubble {
+            padding: 16px;
+            margin: 16px auto;
+            max-width: 680px;
+            border-radius: var(--radius-lg);
+        }
+        .skeleton-line {
+            height: 14px;
+            margin: 8px 0;
+        }
+        .skeleton-line.short { width: 60%; }
+        .skeleton-line.medium { width: 80%; }
+        .skeleton-line.long { width: 95%; }
+
         .welcome-badge {
             display: inline-flex;
             align-items: center;
@@ -964,6 +989,7 @@ async function sendMessage() {
     updateSendButton(); // P0-3
 
     appendMessage('user', text);
+    showSkeleton(); // 显示骨架屏
     showTyping();
 
     abortController = new AbortController();
@@ -977,6 +1003,7 @@ async function sendMessage() {
         });
 
         hideTyping();
+        hideSkeleton(); // 异常时也要隐藏骨架屏
 
         if (!resp.ok) throw new Error('请求失败: ' + resp.status);
 
@@ -1006,6 +1033,7 @@ async function sendMessage() {
 
                     // ── 流式 token 事件 (P0-1) ──
                     if (event.type === 'token') {
+                        hideSkeleton(); // 收到第一个 token 时隐藏骨架屏
                         if (!currentAssistantBubble) {
                             // 创建新的 assistant bubble，后续 token 增量更新
                             currentAssistantBubble = createStreamingBubble();
@@ -1122,6 +1150,26 @@ function finalizeStreamingBubble() {
 function sendQuick(text) {
     document.getElementById('inputText').value = text;
     sendMessage();
+}
+
+function showSkeleton() {
+    document.getElementById('welcome').style.display = 'none';
+    const container = document.getElementById('chatContainer');
+    const div = document.createElement('div');
+    div.id = 'skeleton-bubble';
+    div.className = 'skeleton skeleton-bubble';
+    div.innerHTML = `
+        <div class="skeleton skeleton-line long"></div>
+        <div class="skeleton skeleton-line medium"></div>
+        <div class="skeleton skeleton-line short"></div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function hideSkeleton() {
+    const skeleton = document.getElementById('skeleton-bubble');
+    if (skeleton) skeleton.remove();
 }
 
 function appendMessage(type, content, save = true) {
