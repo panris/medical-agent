@@ -7,9 +7,9 @@ import com.medicalagent.filter.SensitiveDataFilter;
 import com.medicalagent.model.AgentState;
 import com.medicalagent.repository.SessionRepository;
 import com.medicalagent.service.ComplianceService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -26,17 +26,23 @@ public class EvalController {
 
     private static final Logger log = LoggerFactory.getLogger(EvalController.class);
 
-    @Autowired
-    private GraphOrchestrator graphOrchestrator;
+    private final GraphOrchestrator graphOrchestrator;
+    private final RouterAgent routerAgent;
+    private final SensitiveDataFilter sensitiveDataFilter;
+    private final SessionRepository sessionRepository;
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private RouterAgent routerAgent;
-
-    @Autowired
-    private SensitiveDataFilter sensitiveDataFilter;
-
-    @Autowired
-    private SessionRepository sessionRepository;
+    public EvalController(GraphOrchestrator graphOrchestrator,
+                          RouterAgent routerAgent,
+                          SensitiveDataFilter sensitiveDataFilter,
+                          SessionRepository sessionRepository,
+                          ObjectMapper objectMapper) {
+        this.graphOrchestrator = graphOrchestrator;
+        this.routerAgent = routerAgent;
+        this.sensitiveDataFilter = sensitiveDataFilter;
+        this.sessionRepository = sessionRepository;
+        this.objectMapper = objectMapper;
+    }
 
     @Value("${session.ttl-minutes:30}")
     private long sessionTtlMinutes;

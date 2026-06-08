@@ -2,6 +2,7 @@ package com.medicalagent.agent;
 
 import com.medicalagent.config.ModelFactory;
 import com.medicalagent.model.AgentState;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
@@ -80,9 +81,11 @@ public class DiagnosisAgent {
     private static final String JSON_MARKER = "---JSON---";
 
     private final ModelFactory modelFactory;
+    private final ObjectMapper objectMapper;
 
-    public DiagnosisAgent(ModelFactory modelFactory) {
+    public DiagnosisAgent(ModelFactory modelFactory, ObjectMapper objectMapper) {
         this.modelFactory = modelFactory;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -263,7 +266,7 @@ public class DiagnosisAgent {
     @SuppressWarnings("unchecked")
     private Map<String, Object> parseDiagnosisResponse(String json) {
         try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().readValue(json, Map.class);
+            return objectMapper.readValue(json, Map.class);
         } catch (Exception e) {
             log.warn("Failed to parse LLM response as JSON");
             Map<String, Object> fallback = new LinkedHashMap<>();

@@ -72,6 +72,9 @@ java -jar target/medical-agent-1.0.0-SNAPSHOT.jar --spring.profiles.active=postg
 | `/api/v1/health` | GET | 健康检查 |
 | `/api/v1/eval/run` | POST | 运行评估用例 |
 
+**Swagger UI**: http://localhost:8080/swagger-ui.html  
+**OpenAPI JSON**: http://localhost:8080/v3/api-docs
+
 ## 项目结构
 
 ```

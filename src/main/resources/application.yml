@@ -57,6 +57,11 @@ session:
 cors:
   allowed-origins: "http://localhost:3000,http://localhost:8080"
 
+logging:
+  level:
+    com.medicalagent: INFO
+    root: WARN
+
 ---
 # PostgreSQL + pgvector profile
 spring:
@@ -76,7 +81,15 @@ spring:
       ddl-auto: none
     show-sql: false
 
+---
+# Development profile (more verbose logging)
+spring:
+  config:
+    activate:
+      on-profile: dev
+
 logging:
   level:
     com.medicalagent: DEBUG
+    org.springframework.web: DEBUG
     root: INFO

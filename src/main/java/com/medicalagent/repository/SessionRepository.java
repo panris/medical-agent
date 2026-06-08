@@ -1,6 +1,8 @@
 package com.medicalagent.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -13,6 +15,7 @@ import java.util.*;
 @Repository
 public class SessionRepository {
 
+    private static final Logger log = LoggerFactory.getLogger(SessionRepository.class);
     private static final String KEY_PREFIX = "med:session:";
     private final ObjectMapper mapper;
     private final StringRedisTemplate redisTemplate;
@@ -31,7 +34,7 @@ public class SessionRepository {
             redisTemplate.opsForValue().set(
                     KEY_PREFIX + sessionId, json, ttlMinutes, TimeUnit.MINUTES);
         } catch (Exception e) {
-            // Redis 不可用时静默降级
+            log.warn("Redis save failed, sessionId={}: {}", sessionId, e.getMessage());
         }
     }
 
@@ -42,6 +45,7 @@ public class SessionRepository {
         try {
             return redisTemplate.opsForValue().get(KEY_PREFIX + sessionId);
         } catch (Exception e) {
+            log.debug("Redis load failed, sessionId={}: {}", sessionId, e.getMessage());
             return null;
         }
     }
@@ -52,7 +56,9 @@ public class SessionRepository {
     public void delete(String sessionId) {
         try {
             redisTemplate.delete(KEY_PREFIX + sessionId);
-        } catch (Exception e) { /* ignore */ }
+        } catch (Exception e) {
+            log.debug("Redis delete failed, sessionId={}: {}", sessionId, e.getMessage());
+        }
     }
 
     /**
@@ -62,6 +68,7 @@ public class SessionRepository {
         try {
             return redisTemplate.expire(KEY_PREFIX + sessionId, ttlMinutes, TimeUnit.MINUTES);
         } catch (Exception e) {
+            log.debug("Redis expire failed, sessionId={}: {}", sessionId, e.getMessage());
             return false;
         }
     }
@@ -74,13 +81,15 @@ public class SessionRepository {
      */
     public void saveMetadata(String sessionId, String firstMessage) {
         try {
-            Map<String, String> meta = new java.util.HashMap<>();
+            Map<String, String> meta = new HashMap<>();
             meta.put("sessionId", sessionId);
             meta.put("firstMessage", firstMessage.length() > 50 ? firstMessage.substring(0, 50) + "..." : firstMessage);
             meta.put("createdAt", String.valueOf(System.currentTimeMillis()));
             meta.put("updatedAt", String.valueOf(System.currentTimeMillis()));
             redisTemplate.opsForHash().put(META_KEY, sessionId, mapper.writeValueAsString(meta));
-        } catch (Exception e) { /* ignore */ }
+        } catch (Exception e) {
+            log.debug("Redis saveMetadata failed: {}", e.getMessage());
+        }
     }
 
     /**
@@ -95,7 +104,9 @@ public class SessionRepository {
                 meta.put("updatedAt", String.valueOf(System.currentTimeMillis()));
                 redisTemplate.opsForHash().put(META_KEY, sessionId, mapper.writeValueAsString(meta));
             }
-        } catch (Exception e) { /* ignore */ }
+        } catch (Exception e) {
+            log.debug("Redis touchMetadata failed: {}", e.getMessage());
+        }
     }
 
     /**
@@ -104,16 +115,18 @@ public class SessionRepository {
     public void deleteMetadata(String sessionId) {
         try {
             redisTemplate.opsForHash().delete(META_KEY, sessionId);
-        } catch (Exception e) { /* ignore */ }
+        } catch (Exception e) {
+            log.debug("Redis deleteMetadata failed: {}", e.getMessage());
+        }
     }
 
     /**
      * 列出所有会话元数据（按 updatedAt 降序）
      */
-    public java.util.List<Map<String, Object>> listSessions() {
+    public List<Map<String, Object>> listSessions() {
         try {
             Map<Object, Object> raw = redisTemplate.opsForHash().entries(META_KEY);
-            java.util.List<Map<String, Object>> result = new java.util.ArrayList<>();
+            List<Map<String, Object>> result = new ArrayList<>();
             for (Object val : raw.values()) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> meta = mapper.readValue((String) val, Map.class);
@@ -126,7 +139,8 @@ public class SessionRepository {
             });
             return result;
         } catch (Exception e) {
-            return java.util.Collections.emptyList();
+            log.debug("Redis listSessions failed: {}", e.getMessage());
+            return Collections.emptyList();
         }
     }
 }
